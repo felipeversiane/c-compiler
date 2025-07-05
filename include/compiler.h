@@ -30,6 +30,7 @@ typedef enum {
     TOKEN_SE,          /* se */
     TOKEN_SENAO,       /* senao */
     TOKEN_PARA,        /* para */
+    TOKEN_ENQUANTO,    /* enquanto */
     TOKEN_RETORNO,     /* retorno */
     
     /* Tipos de dados */
@@ -191,6 +192,7 @@ typedef enum {
     AST_ASSIGNMENT,
     AST_IF_STMT,
     AST_FOR_STMT,
+    AST_WHILE_STMT,
     AST_RETURN_STMT,
     AST_FUNCTION_CALL,
     AST_BINARY_OP,
@@ -215,6 +217,10 @@ typedef struct ASTNode {
         struct {
             char name[MAX_IDENTIFIER_LENGTH];
             DataType return_type;
+            int param_count;
+            DataType param_types[MAX_FUNCTION_PARAMS];
+            TypeInfo param_type_infos[MAX_FUNCTION_PARAMS];
+            char param_names[MAX_FUNCTION_PARAMS][MAX_IDENTIFIER_LENGTH];
         } function;
         
         struct {

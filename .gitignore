@@ -1,113 +1,48 @@
-# Compiled Object files
-*.o
-*.obj
-
-# Executables
-*.exe
-*.out
-*.app
-compiler
-
-# Build directories
-build/
+# Arquivos de build
 bin/
 obj/
-
-# Libraries
-*.lib
-*.a
-*.so
-*.dylib
-
-# Debug files
-*.pdb
-*.dSYM/
-*.su
-*.idb
-*.ipdb
-
-# Code::Blocks files
-*.cbp
-*.depend
-*.layout
-
-# Dev-C++ files
-*.dev
 *.o
-*.obj
 *.exe
-*.dll
-*.lib
-*.a
-*.so
-*.dylib
+*.out
 
-# Visual Studio files
-*.vcxproj
-*.vcxproj.filters
-*.vcxproj.user
-*.sln
-*.suo
-*.user
-*.userosscache
-*.sln.docstates
-
-# CLion files
-.idea/
-cmake-build-*/
-
-# VS Code files
-.vscode/
-
-# Temporary files
+# Arquivos temporários
+*.log
 *.tmp
-*.temp
-*.bak
 *.swp
-*.swo
 *~
 
-# OS specific files
+# Arquivos de IDE/Editor
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Arquivos de sistema
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Core dumps
-core
-core.*
+# Arquivos de dependência
+node_modules/
+vendor/
 
-# Valgrind output
-vgcore.*
+# Arquivos de cache
+.cache/
+.npm/
+.yarn/
 
-# Profiling data
-*.prof
-*.gmon
+# Arquivos de ambiente
+.env
+.env.local
+.env.*.local
 
-# Coverage files
-*.gcda
-*.gcno
-*.gcov
+# Arquivos de teste
+coverage/
+.nyc_output/
 
-# Test output files
-test_output/
-test_results/
+# Arquivos de build do Docker
+.docker/
 
-# Log files
-*.log
-
-# Memory usage reports
-memory_report.txt
-
-# Symbol table dumps
-symbol_table.dump
-
-# Backup files
-*.orig
-*.rej
-
-# Dependency files
-*.d 
+# Outros
+*.bak
+*.backup
+*.old 

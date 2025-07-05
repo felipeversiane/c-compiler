@@ -1,0 +1,33 @@
+# Arquivos de sistema
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# Arquivos de build
+bin/
+obj/
+*.o
+*.exe
+*.out
+
+# Arquivos temporários
+*.log
+*.tmp
+*.swp
+*~
+
+# Arquivos de documentação
+*.pdf
+*.md
+LICENSE
+
+# Arquivos de Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Outros
+.DS_Store
+Thumbs.db 

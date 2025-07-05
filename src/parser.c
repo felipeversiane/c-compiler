@@ -1,5 +1,26 @@
 #include "../include/compiler.h"
 
+/* Declarações de funções estáticas */
+static int match_token(Parser* parser, TokenType expected);
+static int consume_token(Parser* parser, TokenType expected);
+static int expect_token(Parser* parser, TokenType expected);
+static ASTNode* create_node(Parser* parser, ASTNodeType type);
+static ASTNode* parse_program(Parser* parser);
+static ASTNode* parse_main_function(Parser* parser);
+static ASTNode* parse_function(Parser* parser);
+static ASTNode* parse_block(Parser* parser);
+static ASTNode* parse_statement(Parser* parser);
+static ASTNode* parse_var_declaration(Parser* parser);
+static ASTNode* parse_expression(Parser* parser);
+static ASTNode* parse_if_statement(Parser* parser);
+static ASTNode* parse_for_statement(Parser* parser);
+static ASTNode* parse_while_statement(Parser* parser);
+static ASTNode* parse_return_statement(Parser* parser);
+static ASTNode* parse_io_statement(Parser* parser);
+static ASTNode* parse_assignment(Parser* parser);
+static ASTNode* parse_function_call(Parser* parser);
+static int parse_type_dimensions(Parser* parser, TypeInfo* type_info);
+
 /* Criar parser */
 Parser* parser_create(Lexer* lexer) {
     Parser* parser = (Parser*)malloc(sizeof(Parser));
@@ -86,22 +107,79 @@ static ASTNode* parse_program(Parser* parser) {
     /* Avançar para primeiro token */
     parser->lexer->current_token = lexer_next_token(parser->lexer);
     
-    /* Programa deve começar com função principal */
-    if (!match_token(parser, TOKEN_PRINCIPAL)) {
-        parser_error(parser, "Programa deve começar com função 'principal'");
-        ast_destroy(program);
-        return NULL;
+    /* Ler todas as funções do arquivo */
+    while (!match_token(parser, TOKEN_EOF)) {
+        ASTNode* func = NULL;
+        
+        /* Verificar tipo de função */
+        if (match_token(parser, TOKEN_FUNCAO)) {
+            /* Função normal */
+            func = parse_function(parser);
+        } else if (match_token(parser, TOKEN_PRINCIPAL)) {
+            /* Função principal */
+            func = parse_main_function(parser);
+        } else {
+            parser_error(parser, "Esperado declaração de função");
+            ast_destroy(program);
+            return NULL;
+        }
+        
+        if (!func) {
+            ast_destroy(program);
+            return NULL;
+        }
+        
+        ast_add_child(program, func);
     }
     
-    /* Analisar função principal */
-    ASTNode* main_func = parse_function(parser);
-    if (!main_func) {
-        ast_destroy(program);
-        return NULL;
-    }
-    
-    ast_add_child(program, main_func);
     return program;
+}
+
+/* Analisar função principal */
+static ASTNode* parse_main_function(Parser* parser) {
+    ASTNode* func = create_node(parser, AST_FUNCTION_DEF);
+    if (!func) return NULL;
+    
+    /* Consumir 'principal' */
+    consume_token(parser, TOKEN_PRINCIPAL);
+    
+    /* Copiar nome da função */
+    strncpy(func->data.function.name, "principal", MAX_IDENTIFIER_LENGTH - 1);
+    func->data.function.name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
+    func->data.function.return_type = TYPE_INTEIRO; /* principal sempre retorna inteiro */
+    
+    /* Parâmetros */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(func);
+        return NULL;
+    }
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(func);
+        return NULL;
+    }
+    
+    /* Corpo da função */
+    if (!expect_token(parser, TOKEN_ABRE_CHAVE)) {
+        ast_destroy(func);
+        return NULL;
+    }
+    
+    /* Analisar bloco de código */
+    ASTNode* body = parse_block(parser);
+    if (!body) {
+        ast_destroy(func);
+        return NULL;
+    }
+    
+    ast_add_child(func, body);
+    
+    if (!expect_token(parser, TOKEN_FECHA_CHAVE)) {
+        ast_destroy(func);
+        return NULL;
+    }
+    
+    return func;
 }
 
 /* Analisar função */
@@ -109,12 +187,17 @@ static ASTNode* parse_function(Parser* parser) {
     ASTNode* func = create_node(parser, AST_FUNCTION_DEF);
     if (!func) return NULL;
     
+    /* Consumir 'funcao' */
+    consume_token(parser, TOKEN_FUNCAO);
+    
     /* Nome da função */
-    Token func_token = parser->lexer->current_token;
-    consume_token(parser, TOKEN_PRINCIPAL); /* ou TOKEN_FUNCAO_ID para outras funções */
+    if (!expect_token(parser, TOKEN_FUNCAO_ID)) {
+        ast_destroy(func);
+        return NULL;
+    }
     
     /* Copiar nome da função */
-    strncpy(func->data.function.name, func_token.value, MAX_IDENTIFIER_LENGTH - 1);
+    strncpy(func->data.function.name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
     func->data.function.name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
     
     /* Parâmetros */
@@ -123,7 +206,69 @@ static ASTNode* parse_function(Parser* parser) {
         return NULL;
     }
     
-    /* TODO: Analisar parâmetros quando implementar funções gerais */
+    /* Lista de parâmetros */
+    int param_count = 0;
+    if (!match_token(parser, TOKEN_FECHA_PAREN)) {
+        do {
+            /* Tipo do parâmetro */
+            Token type_token = parser->lexer->current_token;
+            DataType param_type;
+            TypeInfo type_info = {0};
+            
+            switch (type_token.type) {
+                case TOKEN_INTEIRO:
+                    param_type = TYPE_INTEIRO;
+                    break;
+                case TOKEN_TEXTO:
+                    param_type = TYPE_TEXTO;
+                    break;
+                case TOKEN_DECIMAL:
+                    param_type = TYPE_DECIMAL;
+                    break;
+                default:
+                    parser_error(parser, "Tipo de parâmetro inválido");
+                    ast_destroy(func);
+                    return NULL;
+            }
+            
+            consume_token(parser, type_token.type);
+            
+            /* Nome do parâmetro */
+            if (!expect_token(parser, TOKEN_VARIAVEL)) {
+                ast_destroy(func);
+                return NULL;
+            }
+            
+            /* Dimensões do tipo (se houver) */
+            if (!parse_type_dimensions(parser, &type_info)) {
+                ast_destroy(func);
+                return NULL;
+            }
+            
+            /* Adicionar parâmetro */
+            if (param_count < MAX_FUNCTION_PARAMS) {
+                func->data.function.param_types[param_count] = param_type;
+                func->data.function.param_type_infos[param_count] = type_info;
+                strncpy(func->data.function.param_names[param_count],
+                        parser->lexer->current_token.value,
+                        MAX_IDENTIFIER_LENGTH - 1);
+                param_count++;
+            } else {
+                parser_error(parser, "Número máximo de parâmetros excedido");
+                ast_destroy(func);
+                return NULL;
+            }
+            
+            /* Próximo parâmetro */
+            if (match_token(parser, TOKEN_VIRGULA)) {
+                consume_token(parser, TOKEN_VIRGULA);
+            } else {
+                break;
+            }
+        } while (1);
+    }
+    
+    func->data.function.param_count = param_count;
     
     if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
         ast_destroy(func);
@@ -198,6 +343,9 @@ static ASTNode* parse_statement(Parser* parser) {
         case TOKEN_PARA:
             return parse_for_statement(parser);
             
+        case TOKEN_ENQUANTO:
+            return parse_while_statement(parser);
+            
         case TOKEN_RETORNO:
             return parse_return_statement(parser);
             
@@ -207,6 +355,9 @@ static ASTNode* parse_statement(Parser* parser) {
             
         case TOKEN_VARIAVEL:
             return parse_assignment(parser);
+            
+        case TOKEN_FUNCAO_ID:
+            return parse_function_call(parser);
             
         default:
             parser_error(parser, "Comando inválido");
@@ -320,7 +471,7 @@ static ASTNode* parse_var_declaration(Parser* parser) {
 
 /* Analisar expressão */
 static ASTNode* parse_expression(Parser* parser) {
-    /* TODO: Implementar análise de expressões */
+    /* TODO: Implementar análise completa de expressões */
     /* Por enquanto, só aceita literais básicos */
     
     ASTNode* expr = create_node(parser, AST_LITERAL);
@@ -331,18 +482,28 @@ static ASTNode* parse_expression(Parser* parser) {
     switch (token.type) {
         case TOKEN_NUMERO_INT:
             expr->data.literal.int_val = string_to_int(token.value);
+            expr->data_type = TYPE_INTEIRO;
             consume_token(parser, TOKEN_NUMERO_INT);
             break;
             
         case TOKEN_NUMERO_DEC:
             expr->data.literal.decimal_val = string_to_double(token.value);
+            expr->data_type = TYPE_DECIMAL;
             consume_token(parser, TOKEN_NUMERO_DEC);
             break;
             
         case TOKEN_STRING:
             strncpy(expr->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
             expr->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
+            expr->data_type = TYPE_TEXTO;
             consume_token(parser, TOKEN_STRING);
+            break;
+            
+        case TOKEN_VARIAVEL:
+            /* Referência a variável */
+            expr->type = AST_IDENTIFIER;
+            strncpy(expr->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
+            consume_token(parser, TOKEN_VARIAVEL);
             break;
             
         default:
@@ -352,6 +513,387 @@ static ASTNode* parse_expression(Parser* parser) {
     }
     
     return expr;
+}
+
+/* Analisar comando if */
+static ASTNode* parse_if_statement(Parser* parser) {
+    ASTNode* if_stmt = create_node(parser, AST_IF_STMT);
+    if (!if_stmt) return NULL;
+    
+    /* Consumir 'se' */
+    consume_token(parser, TOKEN_SE);
+    
+    /* Condição */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
+    ASTNode* condition = parse_expression(parser);
+    if (!condition) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(if_stmt, condition);
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
+    /* Bloco then */
+    ASTNode* then_block = parse_block(parser);
+    if (!then_block) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(if_stmt, then_block);
+    
+    /* Bloco else (opcional) */
+    if (match_token(parser, TOKEN_SENAO)) {
+        consume_token(parser, TOKEN_SENAO);
+        
+        ASTNode* else_block = parse_block(parser);
+        if (!else_block) {
+            ast_destroy(if_stmt);
+            return NULL;
+        }
+        
+        ast_add_child(if_stmt, else_block);
+    }
+    
+    return if_stmt;
+}
+
+/* Analisar comando for */
+static ASTNode* parse_for_statement(Parser* parser) {
+    ASTNode* for_stmt = create_node(parser, AST_FOR_STMT);
+    if (!for_stmt) return NULL;
+    
+    /* Consumir 'para' */
+    consume_token(parser, TOKEN_PARA);
+    
+    /* Inicialização, condição e incremento */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    /* Inicialização */
+    ASTNode* init = parse_assignment(parser);
+    if (!init) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(for_stmt, init);
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    /* Condição */
+    ASTNode* condition = parse_expression(parser);
+    if (!condition) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(for_stmt, condition);
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    /* Incremento */
+    ASTNode* increment = parse_assignment(parser);
+    if (!increment) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(for_stmt, increment);
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    /* Bloco do loop */
+    ASTNode* body = parse_block(parser);
+    if (!body) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(for_stmt, body);
+    
+    return for_stmt;
+}
+
+/* Analisar comando while */
+static ASTNode* parse_while_statement(Parser* parser) {
+    ASTNode* while_stmt = create_node(parser, AST_WHILE_STMT);
+    if (!while_stmt) return NULL;
+    
+    /* Consumir 'enquanto' */
+    consume_token(parser, TOKEN_ENQUANTO);
+    
+    /* Condição */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    ASTNode* condition = parse_expression(parser);
+    if (!condition) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(while_stmt, condition);
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    /* Bloco do loop */
+    if (!expect_token(parser, TOKEN_ABRE_CHAVE)) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    ASTNode* body = parse_block(parser);
+    if (!body) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(while_stmt, body);
+    
+    if (!expect_token(parser, TOKEN_FECHA_CHAVE)) {
+        ast_destroy(while_stmt);
+        return NULL;
+    }
+    
+    return while_stmt;
+}
+
+/* Analisar comando de retorno */
+static ASTNode* parse_return_statement(Parser* parser) {
+    ASTNode* return_stmt = create_node(parser, AST_RETURN_STMT);
+    if (!return_stmt) return NULL;
+    
+    /* Consumir 'retorno' */
+    consume_token(parser, TOKEN_RETORNO);
+    
+    /* Expressão de retorno */
+    ASTNode* expr = parse_expression(parser);
+    if (!expr) {
+        ast_destroy(return_stmt);
+        return NULL;
+    }
+    
+    ast_add_child(return_stmt, expr);
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(return_stmt);
+        return NULL;
+    }
+    
+    return return_stmt;
+}
+
+/* Analisar comando de entrada/saída */
+static ASTNode* parse_io_statement(Parser* parser) {
+    ASTNode* io_stmt = create_node(parser, AST_FUNCTION_CALL);
+    if (!io_stmt) return NULL;
+    
+    /* Tipo de operação */
+    TokenType op_type = parser->lexer->current_token.type;
+    consume_token(parser, op_type);
+    
+    /* Parâmetros */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(io_stmt);
+        return NULL;
+    }
+    
+    /* Lista de expressões */
+    do {
+        ASTNode* expr = parse_expression(parser);
+        if (!expr) {
+            ast_destroy(io_stmt);
+            return NULL;
+        }
+        
+        ast_add_child(io_stmt, expr);
+        
+        if (match_token(parser, TOKEN_VIRGULA)) {
+            consume_token(parser, TOKEN_VIRGULA);
+        } else {
+            break;
+        }
+    } while (1);
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(io_stmt);
+        return NULL;
+    }
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(io_stmt);
+        return NULL;
+    }
+    
+    return io_stmt;
+}
+
+/* Analisar atribuição */
+static ASTNode* parse_assignment(Parser* parser) {
+    ASTNode* assign = create_node(parser, AST_ASSIGNMENT);
+    if (!assign) return NULL;
+    
+    /* Variável */
+    if (!expect_token(parser, TOKEN_VARIAVEL)) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    /* Criar nó para variável */
+    ASTNode* var = create_node(parser, AST_IDENTIFIER);
+    if (!var) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    strncpy(var->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
+    ast_add_child(assign, var);
+    
+    /* Operador de atribuição */
+    if (!expect_token(parser, TOKEN_ATRIB)) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    /* Expressão */
+    ASTNode* expr = parse_expression(parser);
+    if (!expr) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    ast_add_child(assign, expr);
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    return assign;
+}
+
+/* Analisar chamada de função */
+static ASTNode* parse_function_call(Parser* parser) {
+    ASTNode* call = create_node(parser, AST_FUNCTION_CALL);
+    if (!call) return NULL;
+    
+    /* Nome da função */
+    if (!expect_token(parser, TOKEN_FUNCAO_ID)) {
+        ast_destroy(call);
+        return NULL;
+    }
+    
+    strncpy(call->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
+    
+    /* Parâmetros */
+    if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
+        ast_destroy(call);
+        return NULL;
+    }
+    
+    /* Lista de argumentos */
+    if (!match_token(parser, TOKEN_FECHA_PAREN)) {
+        do {
+            ASTNode* arg = parse_expression(parser);
+            if (!arg) {
+                ast_destroy(call);
+                return NULL;
+            }
+            
+            ast_add_child(call, arg);
+            
+            if (match_token(parser, TOKEN_VIRGULA)) {
+                consume_token(parser, TOKEN_VIRGULA);
+            } else {
+                break;
+            }
+        } while (1);
+    }
+    
+    if (!expect_token(parser, TOKEN_FECHA_PAREN)) {
+        ast_destroy(call);
+        return NULL;
+    }
+    
+    if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
+        ast_destroy(call);
+        return NULL;
+    }
+    
+    return call;
+}
+
+/* Analisar dimensões do tipo */
+static int parse_type_dimensions(Parser* parser, TypeInfo* type_info) {
+    /* Verificar se tem dimensões */
+    if (match_token(parser, TOKEN_ABRE_COLCH)) {
+        consume_token(parser, TOKEN_ABRE_COLCH);
+        
+        /* Ler dimensão */
+        Token dim_token = parser->lexer->current_token;
+        if (dim_token.type != TOKEN_NUMERO_INT && dim_token.type != TOKEN_NUMERO_DEC) {
+            parser_error(parser, "Dimensão deve ser um número");
+            return 0;
+        }
+        
+        if (dim_token.type == TOKEN_NUMERO_INT) {
+            type_info->size = string_to_int(dim_token.value);
+            consume_token(parser, TOKEN_NUMERO_INT);
+        } else {
+            /* Número decimal - pegar parte inteira */
+            char* dot = strchr(dim_token.value, '.');
+            if (dot) *dot = '\0';
+            type_info->size = string_to_int(dim_token.value);
+            if (dot) *dot = '.';
+            consume_token(parser, TOKEN_NUMERO_DEC);
+            
+            /* Para decimal, pode ter parte decimal */
+            if (match_token(parser, TOKEN_PONTO)) {
+                consume_token(parser, TOKEN_PONTO);
+                
+                Token scale_token = parser->lexer->current_token;
+                if (scale_token.type != TOKEN_NUMERO_INT) {
+                    parser_error(parser, "Precisão decimal deve ser um número inteiro");
+                    return 0;
+                }
+                
+                type_info->scale = string_to_int(scale_token.value);
+                consume_token(parser, TOKEN_NUMERO_INT);
+            }
+        }
+        
+        if (!expect_token(parser, TOKEN_FECHA_COLCH)) {
+            return 0;
+        }
+    }
+    
+    return 1;
 }
 
 /* Função principal de análise */

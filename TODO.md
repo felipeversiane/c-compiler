@@ -36,26 +36,32 @@
 - [x] Construção da AST
 - [x] Tratamento de erros sintáticos
 
-### Fase 5: Testes e Exemplos
-- [x] Exemplo básico (hello_world.txt)
-- [x] Exemplo de calculadora (calculator.txt)
-- [x] Exemplo de loops (loops.txt)
-- [x] Exemplo abrangente (comprehensive.txt)
-- [x] Testes de erro (error_test.txt)
+### Fase 5: Infraestrutura
+- [x] Configuração do Docker
+- [x] Configuração do CI/CD
+- [x] Testes automatizados
+- [x] Exemplos de código
+- [x] Documentação básica
 
 ## Em Andamento 🚧
 
-### Fase 6: Análise Semântica
+### Fase 6: Melhorias no Parser
+- [ ] Leitura completa do arquivo
+- [ ] Remoção da restrição de função principal
+- [ ] Suporte a múltiplas funções
+- [ ] Melhor tratamento de erros
+- [ ] Recuperação de erros
+
+### Fase 7: Análise Semântica
 - [ ] Implementação do analisador semântico (semantic.c)
 - [ ] Verificação de tipos
 - [ ] Verificação de escopo
 - [ ] Verificação de declarações
-- [ ] Verificação de expressões
 - [ ] Tratamento de erros semânticos
 
 ## Pendente ⏳
 
-### Fase 7: Interpretador
+### Fase 8: Interpretador
 - [ ] Implementação do interpretador (interpreter.c)
 - [ ] Execução de expressões
 - [ ] Execução de comandos
@@ -63,23 +69,9 @@
 - [ ] Entrada/saída
 - [ ] Tratamento de erros de execução
 
-### Fase 8: Otimização
+### Fase 9: Otimização
 - [ ] Implementação de otimizações básicas
 - [ ] Eliminação de código morto
 - [ ] Propagação de constantes
 - [ ] Simplificação de expressões
 - [ ] Otimização de loops
-
-### Fase 9: Documentação
-- [ ] Manual do usuário
-- [ ] Documentação técnica
-- [ ] Exemplos documentados
-- [ ] Guia de contribuição
-- [ ] Documentação de API
-
-### Fase 10: Melhorias
-- [ ] Suporte a mais tipos de dados
-- [ ] Melhor tratamento de erros
-- [ ] Interface de linha de comando melhorada
-- [ ] Testes automatizados
-- [ ] Integração contínua

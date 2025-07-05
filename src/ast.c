@@ -87,6 +87,9 @@ static void print_ast_recursive(ASTNode* node, int depth) {
         case AST_FOR_STMT:
             printf("Para");
             break;
+        case AST_WHILE_STMT:
+            printf("Enquanto");
+            break;
         case AST_RETURN_STMT:
             printf("Retorno");
             break;

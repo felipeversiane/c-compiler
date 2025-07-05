@@ -1,0 +1,28 @@
+name: c-compiler
+
+services:
+  test:
+    build:
+      context: .
+      target: builder
+    volumes:
+      - .:/app
+    command: >
+      sh -c "
+        make clean &&
+        make &&
+        echo 'Testando exemplos...' &&
+        for example in examples/*.txt; do
+          echo \"\nTestando $$example...\" &&
+          ./bin/compiler \"$$example\" || exit 1;
+        done &&
+        echo '\nTodos os testes passaram com sucesso!'
+      "
+
+  dev:
+    build:
+      context: .
+      target: builder
+    volumes:
+      - .:/app
+    command: tail -f /dev/null

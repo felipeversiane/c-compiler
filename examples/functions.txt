@@ -1,0 +1,50 @@
+// Função para calcular fatorial
+funcao __fatorial(inteiro !n) {
+    se(!n <= 1) {
+        retorno 1;
+    }
+    retorno !n * __fatorial(!n - 1);
+}
+
+// Função para verificar se é par
+funcao __eh_par(inteiro !num) {
+    retorno !num % 2 == 0;
+}
+
+// Função para calcular média
+funcao __media(decimal !n1[2.1], decimal !n2[2.1]) {
+    decimal !resultado[3.1];
+    !resultado = (!n1 + !n2) / 2.0;
+    retorno !resultado;
+}
+
+// Função principal pode estar em qualquer lugar
+principal() {
+    inteiro !num = 5;
+    inteiro !fat;
+    decimal !nota1[2.1] = 7.5;
+    decimal !nota2[2.1] = 8.5;
+    decimal !media_final[3.1];
+    
+    // Testar fatorial
+    !fat = __fatorial(!num);
+    escreva("Fatorial de ", !num, " = ", !fat);
+    
+    // Testar paridade
+    se(__eh_par(!num)) {
+        escreva(!num, " é par");
+    } senao {
+        escreva(!num, " é ímpar");
+    }
+    
+    // Testar média
+    !media_final = __media(!nota1, !nota2);
+    escreva("Média: ", !media_final);
+    
+    retorno 0;
+}
+
+// Função auxiliar pode vir depois da principal
+funcao __dobro(inteiro !x) {
+    retorno !x * 2;
+} 

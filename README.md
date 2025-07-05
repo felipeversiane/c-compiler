@@ -10,11 +10,11 @@ Este é um compilador para uma linguagem de programação personalizada, desenvo
 - Tabela de Símbolos (symbol_table.c)
 - Árvore Sintática Abstrata (ast.c)
 - Analisador Sintático (parser.c)
+- Infraestrutura de Testes (Docker + CI)
 
 ### Em Desenvolvimento 🚧
-- Analisador Semântico
-- Interpretador
-- Otimizador
+- Melhorias no Parser (leitura completa do arquivo)
+- Analisador Semântico (em breve)
 
 ## Características da Linguagem
 
@@ -28,74 +28,77 @@ Este é um compilador para uma linguagem de programação personalizada, desenvo
 ## Exemplo de Código
 
 ```
+funcao __soma(inteiro !a, inteiro !b) {
+    retorno !a + !b;
+}
+
 principal() {
-    inteiro !idade = 25;
-    texto !nome[50];
-    decimal !altura[3.2];
+    inteiro !x = 10;
+    inteiro !y = 20;
+    inteiro !resultado;
     
-    escreva("Digite seu nome: ");
-    leia(!nome);
-    
-    se(!idade >= 18) {
-        escreva("Maior de idade");
-    } senao {
-        escreva("Menor de idade");
-    }
+    !resultado = __soma(!x, !y);
+    escreva("Soma: ", !resultado);
 }
 ```
 
 ## Requisitos
 
+### Para Desenvolvimento Local
 - GCC (GNU Compiler Collection)
 - GNU Make (opcional)
 - Sistema operacional: Windows, Linux ou macOS
 
-## Compilação
+### Para Desenvolvimento com Docker
+- Docker
+- Docker Compose
 
-### Usando GCC diretamente:
-```bash
-gcc -o compiler.exe src/*.c -I include
-```
+## Compilação e Execução
 
-### Usando Make (se disponível):
-```bash
-make
-```
+### Usando Docker (Recomendado)
 
-## Uso
+1. Build e execução:
+   ```bash
+   # Construir a imagem
+   docker compose build
 
-Para compilar um arquivo fonte:
+   # Executar testes
+   docker compose run --rm test
 
-```bash
-compiler.exe arquivo_fonte.txt
-```
+   # Ambiente de desenvolvimento
+   docker compose run --rm dev
+   ```
 
-## Exemplos Disponíveis
+2. Compilar um arquivo:
+   ```bash
+   docker compose run --rm dev compiler arquivo_fonte.txt
+   ```
 
-O projeto inclui vários exemplos na pasta `examples/`:
+### Compilação Local
 
-- `hello_world.txt` - Exemplo básico
-- `calculator.txt` - Calculadora com operações básicas
-- `loops.txt` - Demonstração de estruturas de repetição
-- `comprehensive.txt` - Exemplo completo com várias funcionalidades
-- `error_test.txt` - Testes de detecção de erros
+1. Usando GCC diretamente:
+   ```bash
+   gcc -o compiler.exe src/*.c -I include
+   ```
+
+2. Usando Make (se disponível):
+   ```bash
+   make
+   ```
 
 ## Estrutura do Projeto
 
 ```
 c-compiler/
-├── src/
-│   ├── lexer.c         # Analisador léxico
-│   ├── parser.c        # Analisador sintático
-│   ├── ast.c          # Árvore sintática abstrata
-│   ├── symbol_table.c  # Tabela de símbolos
-│   ├── memory.c       # Gerenciador de memória
-│   ├── utils.c        # Funções utilitárias
-│   └── main.c         # Programa principal
-├── include/
-│   └── compiler.h     # Definições e estruturas
-├── examples/          # Exemplos de código
-└── docs/             # Documentação (em breve)
+├── src/             # Código fonte
+│   ├── lexer.c     # Analisador léxico
+│   ├── parser.c    # Analisador sintático
+│   ├── ast.c       # Árvore sintática
+│   ├── memory.c    # Gerenciador de memória
+│   └── utils.c     # Utilitários
+├── include/        # Headers
+├── examples/       # Exemplos
+└── tests/         # Testes
 ```
 
 ## Funcionalidades Implementadas
@@ -107,38 +110,36 @@ c-compiler/
 - Tratamento de strings e números
 - Detecção de erros léxicos
 
-### Gerenciador de Memória
-- Alocação dinâmica
-- Detecção de vazamentos
-- Relatórios de uso
-- Limites de memória
-
 ### Analisador Sintático
 - Parsing de declarações
 - Parsing de expressões
 - Construção da AST
 - Tratamento de erros sintáticos
 
-### Tabela de Símbolos
-- Gerenciamento de escopo
-- Rastreamento de símbolos
-- Verificação de duplicatas
+### Gerenciador de Memória
+- Alocação dinâmica
+- Detecção de vazamentos
+- Relatórios de uso
+- Limites de memória
 
 ## Próximos Passos
 
-1. Implementação do analisador semântico
-2. Desenvolvimento do interpretador
-3. Adição de otimizações
-4. Melhorias na detecção de erros
-5. Documentação completa
+1. Melhorar o parser para:
+   - Ler o arquivo completo
+   - Remover restrição de função principal
+   - Suportar múltiplas funções
+   - Melhorar tratamento de erros
+
+2. Implementar análise semântica:
+   - Verificação de tipos
+   - Verificação de escopo
+   - Validação de declarações
 
 ## Contribuição
 
-Para contribuir com o projeto:
-
-1. Faça um fork do repositório
+1. Fork o repositório
 2. Crie uma branch para sua feature
-3. Faça commit das suas alterações
+3. Execute os testes
 4. Envie um pull request
 
 ## Licença

@@ -39,7 +39,7 @@ void test_lexer(const char* source_code) {
     printf("=== TESTE CONCLUÍDO ===\n\n");
 }
 
-/* Função para testar o analisador sintático */
+/* Função para testar o analisador sintático e semântico */
 void test_parser(const char* source_code) {
     printf("=== TESTANDO ANALISADOR SINTÁTICO ===\n");
     printf("Código fonte:\n%s\n", source_code);
@@ -62,13 +62,25 @@ void test_parser(const char* source_code) {
     /* Analisar código */
     ASTNode* ast = parser_parse(parser);
     
-    /* Imprimir resultados */
-    printf("=== ESTATÍSTICAS ===\n");
+    /* Imprimir resultados da análise sintática */
+    printf("=== ESTATÍSTICAS SINTÁTICAS ===\n");
     printf("Erros léxicos: %d\n", lexer->error_count);
     printf("Erros sintáticos: %d\n", parser->error_count);
     
     if (ast) {
+        /* Imprimir AST */
         ast_print(ast, 0);
+        
+        /* Análise semântica */
+        printf("\n=== TESTANDO ANALISADOR SEMÂNTICO ===\n");
+        int semantic_ok = semantic_analyze(ast, parser->symbol_table);
+        
+        if (semantic_ok) {
+            printf("Análise semântica concluída com sucesso!\n");
+        } else {
+            printf("Erros semânticos encontrados.\n");
+        }
+        
         ast_destroy(ast);
     } else {
         printf("Nenhuma AST gerada devido a erros\n");
@@ -136,16 +148,15 @@ int main(int argc, char* argv[]) {
         /* Executar teste básico */
         printf("\n=== EXECUTANDO TESTE BÁSICO ===\n");
         const char* test_code = 
-            "principal(){\n"
-            "    inteiro !a = 10;\n"
-            "    texto !nome[20];\n"
-            "    decimal !preco[8.2];\n"
-            "    escreva(\"Teste do compilador!\");\n"
-            "    leia(!nome);\n"
-            "    se(!a > 5)\n"
-            "        escreva(\"A é maior que 5\");\n"
-            "    senao\n"
-            "        escreva(\"A não é maior que 5\");\n"
+            "principal() {\n"
+            "    inteiro !x = 10;\n"
+            "    inteiro !y = 20;\n"
+            "    inteiro !resultado;\n"
+            "    \n"
+            "    !resultado = !x + !y;\n"
+            "    escreva(\"Soma: \", !resultado);\n"
+            "    \n"
+            "    retorno 0;\n"
             "}\n";
         
         test_lexer(test_code);
@@ -168,7 +179,7 @@ int main(int argc, char* argv[]) {
     /* Testar analisador léxico */
     test_lexer(source_code);
     
-    /* Testar analisador sintático */
+    /* Testar analisador sintático e semântico */
     test_parser(source_code);
     
     /* Verificar se houve erros */

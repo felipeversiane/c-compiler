@@ -12,6 +12,7 @@ static const struct {
     {"se", TOKEN_SE},
     {"senao", TOKEN_SENAO},
     {"para", TOKEN_PARA},
+    {"enquanto", TOKEN_ENQUANTO},
     {"retorno", TOKEN_RETORNO},
     {"inteiro", TOKEN_INTEIRO},
     {"texto", TOKEN_TEXTO},
