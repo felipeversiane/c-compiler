@@ -207,7 +207,7 @@ static Token read_identifier(Lexer* lexer) {
             token.type = lexer_get_keyword_type(buffer);
         } else {
             token.type = TOKEN_ERROR;
-            snprintf(token.value, MAX_TOKEN_LENGTH, "Identificador inválido: %s", buffer);
+            snprintf(token.value, MAX_TOKEN_LENGTH, "Identificador deve começar com ! para variáveis ou __ para funções");
             lexer->error_count++;
         }
     }

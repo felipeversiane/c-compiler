@@ -471,48 +471,81 @@ static ASTNode* parse_var_declaration(Parser* parser) {
 
 /* Analisar expressão */
 static ASTNode* parse_expression(Parser* parser) {
-    /* TODO: Implementar análise completa de expressões */
-    /* Por enquanto, só aceita literais básicos */
-    
-    ASTNode* expr = create_node(parser, AST_LITERAL);
-    if (!expr) return NULL;
-    
+    ASTNode* left = NULL;
     Token token = parser->lexer->current_token;
     
     switch (token.type) {
         case TOKEN_NUMERO_INT:
-            expr->data.literal.int_val = string_to_int(token.value);
-            expr->data_type = TYPE_INTEIRO;
+            left = create_node(parser, AST_LITERAL);
+            if (!left) return NULL;
+            left->data.literal.int_val = string_to_int(token.value);
+            left->data_type = TYPE_INTEIRO;
             consume_token(parser, TOKEN_NUMERO_INT);
             break;
             
         case TOKEN_NUMERO_DEC:
-            expr->data.literal.decimal_val = string_to_double(token.value);
-            expr->data_type = TYPE_DECIMAL;
+            left = create_node(parser, AST_LITERAL);
+            if (!left) return NULL;
+            left->data.literal.decimal_val = string_to_double(token.value);
+            left->data_type = TYPE_DECIMAL;
             consume_token(parser, TOKEN_NUMERO_DEC);
             break;
             
         case TOKEN_STRING:
-            strncpy(expr->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
-            expr->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
-            expr->data_type = TYPE_TEXTO;
+            left = create_node(parser, AST_LITERAL);
+            if (!left) return NULL;
+            strncpy(left->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
+            left->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
+            left->data_type = TYPE_TEXTO;
             consume_token(parser, TOKEN_STRING);
             break;
             
         case TOKEN_VARIAVEL:
             /* Referência a variável */
-            expr->type = AST_IDENTIFIER;
-            strncpy(expr->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
+            left = create_node(parser, AST_IDENTIFIER);
+            if (!left) return NULL;
+            strncpy(left->data.literal.string_val, token.value, MAX_STRING_LENGTH - 1);
             consume_token(parser, TOKEN_VARIAVEL);
             break;
             
         default:
             parser_error(parser, "Expressão inválida");
-            ast_destroy(expr);
             return NULL;
     }
     
-    return expr;
+    /* Verificar se tem operador binário */
+    token = parser->lexer->current_token;
+    if (token.type == TOKEN_MAIS || token.type == TOKEN_MENOS ||
+        token.type == TOKEN_MULT || token.type == TOKEN_DIV ||
+        token.type == TOKEN_IGUAL || token.type == TOKEN_DIFERENTE ||
+        token.type == TOKEN_MENOR || token.type == TOKEN_MENOR_IGUAL ||
+        token.type == TOKEN_MAIOR || token.type == TOKEN_MAIOR_IGUAL) {
+        
+        /* Criar nó para operador binário */
+        ASTNode* op = create_node(parser, AST_BINARY_OP);
+        if (!op) {
+            ast_destroy(left);
+            return NULL;
+        }
+        
+        op->data.binary_op.operator = token.type;
+        consume_token(parser, token.type);
+        
+        /* Analisar lado direito da expressão */
+        ASTNode* right = parse_expression(parser);
+        if (!right) {
+            ast_destroy(left);
+            ast_destroy(op);
+            return NULL;
+        }
+        
+        /* Montar árvore */
+        ast_add_child(op, left);
+        ast_add_child(op, right);
+        return op;
+    }
+    
+    return left;
 }
 
 /* Analisar comando if */

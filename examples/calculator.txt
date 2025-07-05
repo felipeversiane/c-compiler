@@ -1,27 +1,27 @@
 // Função para soma
-funcao __soma(decimal !a[10.2], decimal !b[10.2]) {
-    decimal !resultado[10.2];
+funcao __soma(decimal !a[5], decimal !b[5]) {
+    decimal !resultado[6];
     !resultado = !a + !b;
     retorno !resultado;
 }
 
 // Função para subtração
-funcao __subtracao(decimal !a[10.2], decimal !b[10.2]) {
-    decimal !resultado[10.2];
+funcao __subtracao(decimal !a[5], decimal !b[5]) {
+    decimal !resultado[6];
     !resultado = !a - !b;
     retorno !resultado;
 }
 
 // Função para multiplicação
-funcao __multiplicacao(decimal !a[10.2], decimal !b[10.2]) {
-    decimal !resultado[10.2];
+funcao __multiplicacao(decimal !a[5], decimal !b[5]) {
+    decimal !resultado[10];
     !resultado = !a * !b;
     retorno !resultado;
 }
 
 // Função para divisão
-funcao __divisao(decimal !a[10.2], decimal !b[10.2]) {
-    decimal !resultado[10.2];
+funcao __divisao(decimal !a[5], decimal !b[5]) {
+    decimal !resultado[10];
     
     se(!b == 0.0) {
         escreva("ERRO: Divisão por zero!");
@@ -33,8 +33,8 @@ funcao __divisao(decimal !a[10.2], decimal !b[10.2]) {
 }
 
 // Função para potência
-funcao __potencia(decimal !base[10.2], inteiro !expoente) {
-    decimal !resultado[10.2] = 1.0;
+funcao __potencia(decimal !base[5], inteiro !expoente) {
+    decimal !resultado[10] = 1.0;
     inteiro !i;
     
     se(!expoente < 0) {
@@ -51,10 +51,10 @@ funcao __potencia(decimal !base[10.2], inteiro !expoente) {
 
 // Função principal
 principal() {
-    decimal !num1[10.2];
-    decimal !num2[10.2];
+    decimal !num1[5];
+    decimal !num2[5];
     inteiro !opcao;
-    decimal !resultado[10.2];
+    decimal !resultado[10];
     inteiro !continuar = 1;
     
     escreva("=== CALCULADORA ===");
