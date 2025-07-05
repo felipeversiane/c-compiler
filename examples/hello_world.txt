@@ -1,18 +1,29 @@
-principal(){
+principal() {
+    // Declaração de variáveis
+    inteiro !idade = 25;
     texto !nome[50];
-    inteiro !idade;
+    decimal !altura[3.2];
     
-    escreva("Olá Mundo!");
-    escreva("Qual é o seu nome? ");
+    // Saída de texto
+    escreva("Bem-vindo ao programa de teste!");
+    
+    // Entrada de dados
+    escreva("Digite seu nome: ");
     leia(!nome);
-    escreva("Quantos anos você tem? ");
-    leia(!idade);
     
-    escreva("Olá, ", !nome, "!");
-    escreva("Você tem ", !idade, " anos.");
-    
-    se(!idade >= 18)
+    // Estrutura condicional
+    se(!idade >= 18) {
         escreva("Você é maior de idade.");
-    senao
+    } senao {
         escreva("Você é menor de idade.");
+    }
+    
+    // Laço para
+    inteiro !i;
+    para(!i = 1; !i <= 5; !i = !i + 1) {
+        escreva("Contagem: ", !i);
+    }
+    
+    // Retorno
+    retorno 0;
 } 

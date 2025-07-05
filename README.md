@@ -1,189 +1,146 @@
 # Compilador de Linguagem Personalizada
 
-Uma implementação de compilador para uma linguagem de programação personalizada escrita em C, seguindo os padrões ISO/IEC 9899-1990.
+Este é um compilador para uma linguagem de programação personalizada, desenvolvido como projeto acadêmico.
 
-## Visão Geral
+## Estado Atual do Projeto
 
-Este projeto implementa um compilador completo para uma linguagem de programação personalizada que suporta:
-- Declarações de variáveis (inteiro, texto, decimal)
-- Definições e chamadas de funções
-- Estruturas de controle (se/senão, laços para)
-- Operações de entrada/saída
-- Expressões matemáticas e lógicas
-- Gerenciamento de memória com alocação dinâmica
+### Componentes Implementados ✅
+- Analisador Léxico (lexer.c)
+- Gerenciador de Memória (memory.c)
+- Tabela de Símbolos (symbol_table.c)
+- Árvore Sintática Abstrata (ast.c)
+- Analisador Sintático (parser.c)
+
+### Em Desenvolvimento 🚧
+- Analisador Semântico
+- Interpretador
+- Otimizador
 
 ## Características da Linguagem
 
-### Tipos de Dados
-- **inteiro** - Números inteiros
-- **texto** - Strings com tamanho especificado `[tamanho]`
-- **decimal** - Números de ponto flutuante com precisão especificada `[antes.depois]`
+- Tipos de dados: `inteiro`, `texto`, `decimal`
+- Variáveis começam com `!` (ex: `!idade`)
+- Funções começam com `__` (ex: `__calcular`)
+- Suporte a arrays e decimais com precisão definida
+- Estruturas de controle: `se`, `senao`, `para`
+- Entrada/saída: `leia`, `escreva`
 
-### Palavras-Chave
-- `principal()` - Função principal (obrigatória)
-- `funcao` - Definição de função
-- `leia()` - Operação de entrada
-- `escreva()` - Operação de saída
-- `se()` - Comando condicional
-- `senao` - Comando senão
-- `para()` - Laço para
-- `retorno` - Comando de retorno
+## Exemplo de Código
 
-### Nomenclatura de Variáveis
-- Variáveis devem começar com `!` seguido de uma letra minúscula
-- Podem conter letras (a-z, A-Z) e números (0-9) após o primeiro caractere
-- Exemplos: `!a`, `!contador`, `!valor1`
+```
+principal() {
+    inteiro !idade = 25;
+    texto !nome[50];
+    decimal !altura[3.2];
+    
+    escreva("Digite seu nome: ");
+    leia(!nome);
+    
+    se(!idade >= 18) {
+        escreva("Maior de idade");
+    } senao {
+        escreva("Menor de idade");
+    }
+}
+```
 
-### Nomenclatura de Funções
-- Funções devem começar com `__` seguido de uma letra ou número
-- Podem conter letras e números após o prefixo
-- Exemplos: `__soma`, `__calcula1`, `__verificar`
+## Requisitos
 
-### Operadores
-- **Aritméticos**: `+`, `-`, `*`, `/`, `^` (exponenciação)
-- **Relacionais**: `==`, `<>`, `<`, `<=`, `>`, `>=`
-- **Lógicos**: `&&` (e), `||` (ou)
+- GCC (GNU Compiler Collection)
+- GNU Make (opcional)
+- Sistema operacional: Windows, Linux ou macOS
 
-## Requisitos de Compilação
+## Compilação
 
-### Compiladores Suportados
-- **Linux**: GCC versão 6.1 ou inferior
-- **Windows**: 
-  - Dev-C++ 4.9.9.2
-  - Code::Blocks 20.03
+### Usando GCC diretamente:
+```bash
+gcc -o compiler.exe src/*.c -I include
+```
 
-### Restrições de Memória
-- Uso máximo de memória: 2048 KB
-- Alocação dinâmica de memória obrigatória
-- Rastreamento e relatório de uso de memória
+### Usando Make (se disponível):
+```bash
+make
+```
 
 ## Uso
 
-### Estrutura Básica do Programa
-```c
-principal(){
-    inteiro !a, !b = 10;
-    texto !nome[20];
-    decimal !preco[5.2];
-    
-    escreva("Digite um número: ");
-    leia(!a);
-    
-    se(!a > !b)
-        escreva("A é maior que B");
-    senao
-        escreva("B é maior ou igual a A");
-}
-```
+Para compilar um arquivo fonte:
 
-### Definição de Função
-```c
-funcao __soma(inteiro !x, inteiro !y){
-    inteiro !resultado;
-    !resultado = !x + !y;
-    retorno !resultado;
-}
-
-principal(){
-    inteiro !a = 5, !b = 3, !c;
-    !c = __soma(!a, !b);
-    escreva("Resultado: ", !c);
-}
-```
-
-### Estruturas de Controle
-```c
-principal(){
-    inteiro !i;
-    
-    // Laço para
-    para(!i = 1; !i <= 10; !i++){
-        escreva("Número: ", !i);
-    }
-    
-    // Condicional
-    se(!i > 5 && !i < 15)
-        escreva("i está entre 5 e 15");
-}
-```
-
-## Tratamento de Erros
-
-### Erros Léxicos e Sintáticos
-- Programa termina com mensagem de erro e número da linha
-- Exemplos: Tokens inválidos, sintaxe incorreta
-
-### Avisos Semânticos
-- Programa continua execução mas mostra avisos
-- Exemplos: Incompatibilidade de tipos, variáveis não declaradas
-
-### Erros de Memória
-- **Memória Insuficiente**: Termina quando limite de memória é excedido
-- **Aviso de Memória**: Alerta quando uso está entre 90-99% do limite
-
-## Tabela de Símbolos
-
-O compilador mantém uma tabela de símbolos contendo:
-- Tipo da variável
-- Nome da variável
-- Valor atual
-- Escopo da função/módulo
-
-## Detalhes da Implementação
-
-### Fases do Compilador
-1. **Análise Léxica** - Tokenização
-2. **Análise Sintática** - Parsing e construção da AST
-3. **Análise Semântica** - Verificação de tipos e validação de escopo
-4. **Geração/Interpretação de Código** - Execução
-
-### Requisitos Principais
-- Linguagem sensível a maiúsculas/minúsculas
-- Delimitadores balanceados: `{}`, `()`, `[]`, `""`
-- Gerenciamento adequado de memória
-- Relatório completo de erros
-
-## Compilação e Execução
-
-1. Compilar o compilador:
 ```bash
-gcc -o compilador main.c lexer.c parser.c semantic.c interpreter.c memory.c
+compiler.exe arquivo_fonte.txt
 ```
 
-2. Executar com arquivo fonte:
-```bash
-./compilador programa.txt
-```
+## Exemplos Disponíveis
 
-## Testes
+O projeto inclui vários exemplos na pasta `examples/`:
 
-O compilador inclui casos de teste abrangentes cobrindo:
-- Todas as características da linguagem
-- Condições de erro
-- Casos extremos
-- Cenários de gerenciamento de memória
+- `hello_world.txt` - Exemplo básico
+- `calculator.txt` - Calculadora com operações básicas
+- `loops.txt` - Demonstração de estruturas de repetição
+- `comprehensive.txt` - Exemplo completo com várias funcionalidades
+- `error_test.txt` - Testes de detecção de erros
 
 ## Estrutura do Projeto
 
 ```
 c-compiler/
 ├── src/
-│   ├── main.c          # Ponto de entrada do programa
 │   ├── lexer.c         # Analisador léxico
 │   ├── parser.c        # Analisador sintático
-│   ├── semantic.c      # Analisador semântico
-│   ├── interpreter.c   # Interpretador de código
-│   ├── memory.c        # Gerenciador de memória
-│   └── symbol_table.c  # Implementação da tabela de símbolos
+│   ├── ast.c          # Árvore sintática abstrata
+│   ├── symbol_table.c  # Tabela de símbolos
+│   ├── memory.c       # Gerenciador de memória
+│   ├── utils.c        # Funções utilitárias
+│   └── main.c         # Programa principal
 ├── include/
-│   └── compiler.h      # Definições de cabeçalho
-├── tests/
-│   └── test_cases/     # Programas de teste
-├── examples/
-│   └── sample_programs/ # Programas de exemplo
-└── README.md
+│   └── compiler.h     # Definições e estruturas
+├── examples/          # Exemplos de código
+└── docs/             # Documentação (em breve)
 ```
+
+## Funcionalidades Implementadas
+
+### Analisador Léxico
+- Reconhecimento de tokens
+- Identificação de palavras-chave
+- Suporte a identificadores especiais
+- Tratamento de strings e números
+- Detecção de erros léxicos
+
+### Gerenciador de Memória
+- Alocação dinâmica
+- Detecção de vazamentos
+- Relatórios de uso
+- Limites de memória
+
+### Analisador Sintático
+- Parsing de declarações
+- Parsing de expressões
+- Construção da AST
+- Tratamento de erros sintáticos
+
+### Tabela de Símbolos
+- Gerenciamento de escopo
+- Rastreamento de símbolos
+- Verificação de duplicatas
+
+## Próximos Passos
+
+1. Implementação do analisador semântico
+2. Desenvolvimento do interpretador
+3. Adição de otimizações
+4. Melhorias na detecção de erros
+5. Documentação completa
+
+## Contribuição
+
+Para contribuir com o projeto:
+
+1. Faça um fork do repositório
+2. Crie uma branch para sua feature
+3. Faça commit das suas alterações
+4. Envie um pull request
 
 ## Licença
 
-Este projeto é desenvolvido para fins acadêmicos seguindo as especificações fornecidas nos requisitos do curso.
+Este projeto é licenciado sob a licença MIT - veja o arquivo LICENSE para detalhes.

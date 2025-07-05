@@ -1,54 +1,56 @@
 // Este arquivo contém erros propositais para testar o sistema de tratamento de erros
 
-// Erro: Função sem nome
-funcao (){
-    inteiro !a;
+// Erro 1: Função sem palavra-chave 'funcao'
+__teste() {
+    retorno 0;
 }
 
-// Erro: Variável sem prefixo !
-funcao __teste(){
-    inteiro a;
+// Erro 2: Variável sem prefixo '!'
+funcao __soma(inteiro x, inteiro !y) {
+    retorno !x + !y;
 }
 
-// Erro: Operador inválido
-funcao __teste2(){
-    inteiro !a, !b;
-    !a = !b != 5;  // != não é válido, deveria ser <>
+// Erro 3: Função com prefixo incorreto
+funcao soma() {
+    retorno 0;
 }
 
-// Erro: Parênteses não balanceados
-funcao __teste3(){
-    inteiro !a;
-    se(!a > 5 {
-        escreva("Erro");
+// Erro 4: Tipo de dado inválido
+funcao __teste2() {
+    bool !flag = verdadeiro;
+    retorno !flag;
+}
+
+// Erro 5: String sem fechar
+principal() {
+    texto !mensagem = "Teste de erro;
+    
+    // Erro 6: Variável não declarada
+    !valor = 10;
+    
+    // Erro 7: Dimensão decimal inválida
+    decimal !preco[2.a];
+    
+    // Erro 8: Parênteses não fechado
+    se(!valor > 0 {
+        escreva("Positivo");
     }
-}
-
-// Erro: Tipo inválido
-funcao __teste4(){
-    string !nome;  // tipo string não existe, deveria ser texto
-}
-
-// Erro: Aspas não balanceadas
-funcao __teste5(){
-    escreva("Olá mundo");
-}
-
-// Erro: Função principal sem parâmetros mas com parênteses extras
-principal()(){
-    escreva("Erro na função principal");
-}
-
-// Programa correto para comparação
-principal(){
-    inteiro !a = 10;
-    texto !nome[20];
     
-    escreva("Digite seu nome: ");
-    leia(!nome);
+    // Erro 9: Operador inválido
+    inteiro !a = 5 $ 2;
     
-    se(!a > 5)
-        escreva("Número maior que 5");
+    // Erro 10: Chamada de função inexistente
+    __nao_existe();
     
-    escreva("Olá, ", !nome, "!");
+    // Erro 11: Tipo incompatível em atribuição
+    texto !nome = 123;
+    
+    // Erro 12: Dimensão negativa
+    texto !texto[-10];
+    
+    // Erro 13: Chaves não fechadas
+    para(!i = 0; !i < 10; !i = !i + 1) {
+        escreva(!i);
+    
+    retorno 0;
 } 

@@ -1,0 +1,189 @@
+#include "../include/compiler.h"
+
+/* Função para testar o analisador léxico */
+void test_lexer(const char* source_code) {
+    printf("=== TESTANDO ANALISADOR LÉXICO ===\n");
+    printf("Código fonte:\n%s\n", source_code);
+    printf("=== TOKENS GERADOS ===\n");
+    
+    /* Criar lexer */
+    Lexer* lexer = lexer_create(source_code);
+    if (!lexer) {
+        fprintf(stderr, "Erro ao criar lexer\n");
+        return;
+    }
+    
+    /* Processar todos os tokens */
+    Token token;
+    int token_count = 0;
+    
+    do {
+        token = lexer_next_token(lexer);
+        print_token(token);
+        token_count++;
+        
+        /* Prevenir loop infinito */
+        if (token_count > 1000) {
+            printf("ERRO: Muitos tokens processados - possível loop infinito\n");
+            break;
+        }
+        
+    } while (token.type != TOKEN_EOF && token.type != TOKEN_ERROR);
+    
+    printf("=== ESTATÍSTICAS ===\n");
+    printf("Total de tokens: %d\n", token_count);
+    printf("Erros encontrados: %d\n", lexer->error_count);
+    
+    /* Limpar */
+    lexer_destroy(lexer);
+    printf("=== TESTE CONCLUÍDO ===\n\n");
+}
+
+/* Função para testar o analisador sintático */
+void test_parser(const char* source_code) {
+    printf("=== TESTANDO ANALISADOR SINTÁTICO ===\n");
+    printf("Código fonte:\n%s\n", source_code);
+    
+    /* Criar lexer */
+    Lexer* lexer = lexer_create(source_code);
+    if (!lexer) {
+        fprintf(stderr, "Erro ao criar lexer\n");
+        return;
+    }
+    
+    /* Criar parser */
+    Parser* parser = parser_create(lexer);
+    if (!parser) {
+        fprintf(stderr, "Erro ao criar parser\n");
+        lexer_destroy(lexer);
+        return;
+    }
+    
+    /* Analisar código */
+    ASTNode* ast = parser_parse(parser);
+    
+    /* Imprimir resultados */
+    printf("=== ESTATÍSTICAS ===\n");
+    printf("Erros léxicos: %d\n", lexer->error_count);
+    printf("Erros sintáticos: %d\n", parser->error_count);
+    
+    if (ast) {
+        ast_print(ast, 0);
+        ast_destroy(ast);
+    } else {
+        printf("Nenhuma AST gerada devido a erros\n");
+    }
+    
+    /* Limpar */
+    parser_destroy(parser);
+    lexer_destroy(lexer);
+    printf("=== TESTE CONCLUÍDO ===\n\n");
+}
+
+/* Função para ler arquivo */
+char* read_file(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        fprintf(stderr, "Erro: Não foi possível abrir o arquivo '%s'\n", filename);
+        return NULL;
+    }
+    
+    /* Obter tamanho do arquivo */
+    fseek(file, 0, SEEK_END);
+    long size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    if (size <= 0) {
+        fprintf(stderr, "Erro: Arquivo vazio ou erro ao ler tamanho\n");
+        fclose(file);
+        return NULL;
+    }
+    
+    /* Alocar buffer */
+    char* content = (char*)malloc(size + 1);
+    if (!content) {
+        fprintf(stderr, "Erro: Falha ao alocar memória para arquivo\n");
+        fclose(file);
+        return NULL;
+    }
+    
+    /* Ler conteúdo */
+    size_t read_size = fread(content, 1, size, file);
+    content[read_size] = '\0';
+    
+    fclose(file);
+    return content;
+}
+
+/* Função principal */
+int main(int argc, char* argv[]) {
+    printf("=== COMPILADOR DE LINGUAGEM PERSONALIZADA ===\n");
+    printf("Versão: 1.0.0\n");
+    printf("Desenvolvido seguindo especificações ISO/IEC 9899-1990\n\n");
+    
+    /* Inicializar gerenciador de memória global */
+    g_memory_manager = memory_manager_create();
+    if (!g_memory_manager) {
+        fprintf(stderr, "ERRO CRÍTICO: Falha ao inicializar gerenciador de memória\n");
+        return 1;
+    }
+    
+    /* Verificar argumentos */
+    if (argc < 2) {
+        printf("Uso: %s <arquivo_fonte>\n", argv[0]);
+        printf("Exemplo: %s examples/hello_world.txt\n", argv[0]);
+        
+        /* Executar teste básico */
+        printf("\n=== EXECUTANDO TESTE BÁSICO ===\n");
+        const char* test_code = 
+            "principal(){\n"
+            "    inteiro !a = 10;\n"
+            "    texto !nome[20];\n"
+            "    decimal !preco[8.2];\n"
+            "    escreva(\"Teste do compilador!\");\n"
+            "    leia(!nome);\n"
+            "    se(!a > 5)\n"
+            "        escreva(\"A é maior que 5\");\n"
+            "    senao\n"
+            "        escreva(\"A não é maior que 5\");\n"
+            "}\n";
+        
+        test_lexer(test_code);
+        test_parser(test_code);
+        
+        memory_manager_destroy(g_memory_manager);
+        return 0;
+    }
+    
+    /* Ler arquivo fonte */
+    char* source_code = read_file(argv[1]);
+    if (!source_code) {
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+    
+    printf("Arquivo: %s\n", argv[1]);
+    printf("Tamanho: %zu bytes\n\n", strlen(source_code));
+    
+    /* Testar analisador léxico */
+    test_lexer(source_code);
+    
+    /* Testar analisador sintático */
+    test_parser(source_code);
+    
+    /* Verificar se houve erros */
+    if (g_error_count > 0) {
+        printf("COMPILAÇÃO FALHOU: %d erro(s) encontrado(s)\n", g_error_count);
+        free(source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+    
+    printf("COMPILAÇÃO CONCLUÍDA COM SUCESSO!\n");
+    
+    /* Limpar e finalizar */
+    free(source_code);
+    memory_manager_destroy(g_memory_manager);
+    
+    return 0;
+} 

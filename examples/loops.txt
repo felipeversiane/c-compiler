@@ -1,30 +1,129 @@
-principal(){
-    inteiro !i, !j, !n, !soma = 0;
+// Função para verificar se um número é primo
+funcao __eh_primo(inteiro !numero) {
+    inteiro !i;
+    inteiro !divisores = 0;
     
-    escreva("=== EXEMPLOS DE LAÇOS ===");
-    
-    escreva("Contando de 1 a 10:");
-    para(!i = 1; !i <= 10; !i++){
-        escreva("Número: ", !i);
+    se(!numero <= 1) {
+        retorno 0;
     }
     
-    escreva("Digite um número para calcular a soma dos números até ele: ");
-    leia(!n);
-    
-    para(!i = 1; !i <= !n; !i++){
-        !soma = !soma + !i;
+    para(!i = 1; !i <= !numero; !i = !i + 1) {
+        se(!numero % !i == 0) {
+            !divisores = !divisores + 1;
+        }
     }
     
-    escreva("A soma dos números de 1 a ", !n, " é: ", !soma);
+    se(!divisores == 2) {
+        retorno 1;
+    } senao {
+        retorno 0;
+    }
+}
+
+// Função para gerar sequência de Fibonacci
+funcao __fibonacci(inteiro !n) {
+    inteiro !anterior = 0;
+    inteiro !atual = 1;
+    inteiro !proximo;
+    inteiro !i;
     
-    escreva("Tabuada do 5:");
-    para(!i = 1; !i <= 10; !i++){
-        !j = 5 * !i;
-        escreva("5 x ", !i, " = ", !j);
+    se(!n <= 0) {
+        retorno 0;
     }
     
-    escreva("Números pares de 2 a 20:");
-    para(!i = 2; !i <= 20; !i = !i + 2){
-        escreva("Par: ", !i);
+    se(!n == 1) {
+        retorno !anterior;
     }
+    
+    se(!n == 2) {
+        retorno !atual;
+    }
+    
+    para(!i = 3; !i <= !n; !i = !i + 1) {
+        !proximo = !anterior + !atual;
+        !anterior = !atual;
+        !atual = !proximo;
+    }
+    
+    retorno !atual;
+}
+
+// Função principal
+principal() {
+    inteiro !opcao;
+    inteiro !continuar = 1;
+    
+    escreva("=== TESTADOR DE LOOPS ===");
+    
+    enquanto(!continuar == 1) {
+        escreva("\nEscolha uma opção:");
+        escreva("1 - Números primos até N");
+        escreva("2 - Sequência de Fibonacci até N");
+        escreva("3 - Tabuada");
+        escreva("4 - Padrão de asteriscos");
+        escreva("0 - Sair");
+        
+        escreva("\nOpção: ");
+        leia(!opcao);
+        
+        se(!opcao == 0) {
+            !continuar = 0;
+        } senao se(!opcao == 1) {
+            inteiro !limite;
+            inteiro !i;
+            
+            escreva("Digite o limite N: ");
+            leia(!limite);
+            
+            escreva("Números primos até ", !limite, ":");
+            para(!i = 1; !i <= !limite; !i = !i + 1) {
+                se(__eh_primo(!i) == 1) {
+                    escreva(!i);
+                }
+            }
+        } senao se(!opcao == 2) {
+            inteiro !termos;
+            inteiro !i;
+            
+            escreva("Digite quantos termos deseja ver: ");
+            leia(!termos);
+            
+            escreva("Sequência de Fibonacci:");
+            para(!i = 1; !i <= !termos; !i = !i + 1) {
+                escreva("F(", !i, ") = ", __fibonacci(!i));
+            }
+        } senao se(!opcao == 3) {
+            inteiro !numero;
+            inteiro !i;
+            
+            escreva("Digite um número para ver sua tabuada: ");
+            leia(!numero);
+            
+            escreva("Tabuada do ", !numero, ":");
+            para(!i = 1; !i <= 10; !i = !i + 1) {
+                escreva(!numero, " x ", !i, " = ", !numero * !i);
+            }
+        } senao se(!opcao == 4) {
+            inteiro !linhas;
+            inteiro !i;
+            inteiro !j;
+            texto !asterisco[2] = "*";
+            
+            escreva("Digite o número de linhas: ");
+            leia(!linhas);
+            
+            para(!i = 1; !i <= !linhas; !i = !i + 1) {
+                texto !linha[50] = "";
+                para(!j = 1; !j <= !i; !j = !j + 1) {
+                    !linha = !linha + !asterisco;
+                }
+                escreva(!linha);
+            }
+        } senao {
+            escreva("Opção inválida!");
+        }
+    }
+    
+    escreva("\nObrigado por usar o testador de loops!");
+    retorno 0;
 } 
