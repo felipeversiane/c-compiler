@@ -1,0 +1,54 @@
+// Este arquivo contém erros propositais para testar o sistema de tratamento de erros
+
+// Erro: Função sem nome
+funcao (){
+    inteiro !a;
+}
+
+// Erro: Variável sem prefixo !
+funcao __teste(){
+    inteiro a;
+}
+
+// Erro: Operador inválido
+funcao __teste2(){
+    inteiro !a, !b;
+    !a = !b != 5;  // != não é válido, deveria ser <>
+}
+
+// Erro: Parênteses não balanceados
+funcao __teste3(){
+    inteiro !a;
+    se(!a > 5 {
+        escreva("Erro");
+    }
+}
+
+// Erro: Tipo inválido
+funcao __teste4(){
+    string !nome;  // tipo string não existe, deveria ser texto
+}
+
+// Erro: Aspas não balanceadas
+funcao __teste5(){
+    escreva("Olá mundo");
+}
+
+// Erro: Função principal sem parâmetros mas com parênteses extras
+principal()(){
+    escreva("Erro na função principal");
+}
+
+// Programa correto para comparação
+principal(){
+    inteiro !a = 10;
+    texto !nome[20];
+    
+    escreva("Digite seu nome: ");
+    leia(!nome);
+    
+    se(!a > 5)
+        escreva("Número maior que 5");
+    
+    escreva("Olá, ", !nome, "!");
+} 

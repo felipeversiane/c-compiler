@@ -1,0 +1,83 @@
+funcao __soma(inteiro !a, inteiro !b){
+    inteiro !resultado;
+    !resultado = !a + !b;
+    retorno !resultado;
+}
+
+funcao __multiplicacao(inteiro !x, inteiro !y){
+    inteiro !produto;
+    !produto = !x * !y;
+    retorno !produto;
+}
+
+funcao __fibonacci(inteiro !n){
+    inteiro !a = 0, !b = 1, !temp;
+    se(!n <= 1)
+        retorno !n;
+    
+    para(!temp = 2; !temp <= !n; !temp++){
+        !temp = !a + !b;
+        !a = !b;
+        !b = !temp;
+    }
+    retorno !b;
+}
+
+principal(){
+    inteiro !opcao, !num1, !num2, !resultado;
+    texto !nome[30];
+    decimal !preco[8.2];
+    
+    escreva("=== CALCULADORA SIMPLES ===");
+    escreva("Digite seu nome: ");
+    leia(!nome);
+    escreva("Olá, ", !nome, "!");
+    
+    escreva("Escolha uma operação:");
+    escreva("1 - Soma");
+    escreva("2 - Multiplicação");
+    escreva("3 - Fibonacci");
+    escreva("4 - Calculadora de Preço");
+    escreva("Digite sua opção: ");
+    leia(!opcao);
+    
+    se(!opcao == 1){
+        escreva("Digite o primeiro número: ");
+        leia(!num1);
+        escreva("Digite o segundo número: ");
+        leia(!num2);
+        !resultado = __soma(!num1, !num2);
+        escreva("Resultado: ", !num1, " + ", !num2, " = ", !resultado);
+    }
+    senao se(!opcao == 2){
+        escreva("Digite o primeiro número: ");
+        leia(!num1);
+        escreva("Digite o segundo número: ");
+        leia(!num2);
+        !resultado = __multiplicacao(!num1, !num2);
+        escreva("Resultado: ", !num1, " * ", !num2, " = ", !resultado);
+    }
+    senao se(!opcao == 3){
+        escreva("Digite a posição do Fibonacci: ");
+        leia(!num1);
+        !resultado = __fibonacci(!num1);
+        escreva("Fibonacci(", !num1, ") = ", !resultado);
+    }
+    senao se(!opcao == 4){
+        escreva("Digite o preço do produto: ");
+        leia(!preco);
+        
+        se(!preco >= 100.00){
+            !preco = !preco * 0.90;
+            escreva("Desconto aplicado! Preço final: ", !preco);
+        }
+        senao{
+            escreva("Preço final: ", !preco);
+        }
+    }
+    senao{
+        escreva("Opção inválida!");
+    }
+    
+    escreva("Obrigado por usar a calculadora, ", !nome, "!");
+} 

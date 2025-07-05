@@ -1,0 +1,18 @@
+principal(){
+    texto !nome[50];
+    inteiro !idade;
+    
+    escreva("Olá Mundo!");
+    escreva("Qual é o seu nome? ");
+    leia(!nome);
+    escreva("Quantos anos você tem? ");
+    leia(!idade);
+    
+    escreva("Olá, ", !nome, "!");
+    escreva("Você tem ", !idade, " anos.");
+    
+    se(!idade >= 18)
+        escreva("Você é maior de idade.");
+    senao
+        escreva("Você é menor de idade.");
+} 

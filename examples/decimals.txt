@@ -1,0 +1,43 @@
+funcao __calcularArea(decimal !raio){
+    decimal !area[10.4];
+    !area = 3.1416 * !raio * !raio;
+    retorno !area;
+}
+
+funcao __calcularDesconto(decimal !preco, decimal !percentual){
+    decimal !desconto[10.2];
+    !desconto = !preco * (!percentual / 100.00);
+    retorno !desconto;
+}
+
+principal(){
+    decimal !raio[5.2], !area[10.4];
+    decimal !preco[8.2], !desconto[10.2], !precoFinal[10.2];
+    decimal !percentualDesconto[5.2];
+    
+    escreva("=== CALCULADORA COM DECIMAIS ===");
+    
+    escreva("Digite o raio de um círculo: ");
+    leia(!raio);
+    !area = __calcularArea(!raio);
+    escreva("A área do círculo é: ", !area);
+    
+    escreva("Digite o preço de um produto: ");
+    leia(!preco);
+    escreva("Digite o percentual de desconto: ");
+    leia(!percentualDesconto);
+    
+    !desconto = __calcularDesconto(!preco, !percentualDesconto);
+    !precoFinal = !preco - !desconto;
+    
+    escreva("Preço original: ", !preco);
+    escreva("Desconto (", !percentualDesconto, "%): ", !desconto);
+    escreva("Preço final: ", !precoFinal);
+    
+    se(!precoFinal < 50.00)
+        escreva("Produto barato!");
+    senao se(!precoFinal >= 50.00 && !precoFinal < 100.00)
+        escreva("Produto com preço médio.");
+    senao
+        escreva("Produto caro!");
+} 

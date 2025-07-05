@@ -1,0 +1,145 @@
+funcao __ehPrimo(inteiro !numero){
+    inteiro !i, !divisores = 0;
+    
+    se(!numero <= 1)
+        retorno 0;
+    
+    para(!i = 1; !i <= !numero; !i++){
+        se(!numero % !i == 0)
+            !divisores = !divisores + 1;
+    }
+    
+    se(!divisores == 2)
+        retorno 1;
+    senao
+        retorno 0;
+}
+
+funcao __fatorial(inteiro !n){
+    inteiro !resultado = 1, !i;
+    
+    para(!i = 1; !i <= !n; !i++){
+        !resultado = !resultado * !i;
+    }
+    
+    retorno !resultado;
+}
+
+funcao __potencia(decimal !base, inteiro !expoente){
+    decimal !resultado[15.6] = 1.0;
+    inteiro !i;
+    
+    para(!i = 1; !i <= !expoente; !i++){
+        !resultado = !resultado * !base;
+    }
+    
+    retorno !resultado;
+}
+
+funcao __mediaNotas(decimal !nota1, decimal !nota2, decimal !nota3){
+    decimal !media[5.2];
+    !media = (!nota1 + !nota2 + !nota3) / 3.0;
+    retorno !media;
+}
+
+principal(){
+    texto !nomeAluno[50], !situacao[15];
+    inteiro !opcao, !numero, !resultado, !primo;
+    decimal !nota1[4.2], !nota2[4.2], !nota3[4.2], !media[5.2];
+    decimal !base[8.3], !potenciaResult[15.6];
+    inteiro !expoente;
+    
+    escreva("=== SISTEMA ACADÊMICO COMPLETO ===");
+    escreva("Digite o nome do aluno: ");
+    leia(!nomeAluno);
+    
+    escreva("Bem-vindo, ", !nomeAluno, "!");
+    escreva("Escolha uma opção:");
+    escreva("1 - Calcular média de notas");
+    escreva("2 - Verificar se número é primo");
+    escreva("3 - Calcular fatorial");
+    escreva("4 - Calcular potência");
+    escreva("5 - Relatório completo");
+    escreva("Digite sua opção: ");
+    leia(!opcao);
+    
+    se(!opcao == 1){
+        escreva("Digite a primeira nota: ");
+        leia(!nota1);
+        escreva("Digite a segunda nota: ");
+        leia(!nota2);
+        escreva("Digite a terceira nota: ");
+        leia(!nota3);
+        
+        !media = __mediaNotas(!nota1, !nota2, !nota3);
+        
+        escreva("Aluno: ", !nomeAluno);
+        escreva("Nota 1: ", !nota1);
+        escreva("Nota 2: ", !nota2);
+        escreva("Nota 3: ", !nota3);
+        escreva("Média: ", !media);
+        
+        se(!media >= 7.0)
+            escreva("Situação: APROVADO");
+        senao se(!media >= 5.0 && !media < 7.0)
+            escreva("Situação: RECUPERAÇÃO");
+        senao
+            escreva("Situação: REPROVADO");
+    }
+    senao se(!opcao == 2){
+        escreva("Digite um número para verificar se é primo: ");
+        leia(!numero);
+        
+        !primo = __ehPrimo(!numero);
+        
+        se(!primo == 1)
+            escreva("O número ", !numero, " é primo.");
+        senao
+            escreva("O número ", !numero, " não é primo.");
+    }
+    senao se(!opcao == 3){
+        escreva("Digite um número para calcular o fatorial: ");
+        leia(!numero);
+        
+        se(!numero >= 0){
+            !resultado = __fatorial(!numero);
+            escreva("O fatorial de ", !numero, " é: ", !resultado);
+        }
+        senao{
+            escreva("Erro: Não é possível calcular fatorial de número negativo.");
+        }
+    }
+    senao se(!opcao == 4){
+        escreva("Digite a base: ");
+        leia(!base);
+        escreva("Digite o expoente: ");
+        leia(!expoente);
+        
+        !potenciaResult = __potencia(!base, !expoente);
+        escreva(!base, " elevado a ", !expoente, " = ", !potenciaResult);
+    }
+    senao se(!opcao == 5){
+        escreva("=== RELATÓRIO COMPLETO ===");
+        escreva("Aluno: ", !nomeAluno);
+        
+        escreva("Cálculos matemáticos:");
+        escreva("Fatorial de 5: ", __fatorial(5));
+        escreva("10 elevado a 3: ", __potencia(10.0, 3));
+        
+        escreva("Verificação de primos de 1 a 10:");
+        para(!numero = 1; !numero <= 10; !numero++){
+            !primo = __ehPrimo(!numero);
+            se(!primo == 1)
+                escreva(!numero, " é primo");
+        }
+        
+        escreva("Média de notas exemplo (8.5, 7.0, 9.2):");
+        !media = __mediaNotas(8.5, 7.0, 9.2);
+        escreva("Média: ", !media);
+    }
+    senao{
+        escreva("Opção inválida!");
+    }
+    
+    escreva("Obrigado por usar o sistema, ", !nomeAluno, "!");
+} 

@@ -1,0 +1,30 @@
+principal(){
+    inteiro !i, !j, !n, !soma = 0;
+    
+    escreva("=== EXEMPLOS DE LAÇOS ===");
+    
+    escreva("Contando de 1 a 10:");
+    para(!i = 1; !i <= 10; !i++){
+        escreva("Número: ", !i);
+    }
+    
+    escreva("Digite um número para calcular a soma dos números até ele: ");
+    leia(!n);
+    
+    para(!i = 1; !i <= !n; !i++){
+        !soma = !soma + !i;
+    }
+    
+    escreva("A soma dos números de 1 a ", !n, " é: ", !soma);
+    
+    escreva("Tabuada do 5:");
+    para(!i = 1; !i <= 10; !i++){
+        !j = 5 * !i;
+        escreva("5 x ", !i, " = ", !j);
+    }
+    
+    escreva("Números pares de 2 a 20:");
+    para(!i = 2; !i <= 20; !i = !i + 2){
+        escreva("Par: ", !i);
+    }
+} 
