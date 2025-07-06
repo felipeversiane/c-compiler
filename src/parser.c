@@ -372,15 +372,16 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     
     /* Tipo da variável */
     Token type_token = parser->lexer->current_token;
+    DataType var_type;
     switch (type_token.type) {
         case TOKEN_INTEIRO:
-            var_decl->data.var_decl.var_type = TYPE_INTEIRO;
+            var_type = TYPE_INTEIRO;
             break;
         case TOKEN_TEXTO:
-            var_decl->data.var_decl.var_type = TYPE_TEXTO;
+            var_type = TYPE_TEXTO;
             break;
         case TOKEN_DECIMAL:
-            var_decl->data.var_decl.var_type = TYPE_DECIMAL;
+            var_type = TYPE_DECIMAL;
             break;
         default:
             parser_error(parser, "Tipo de variável inválido");
@@ -388,6 +389,7 @@ static ASTNode* parse_var_declaration(Parser* parser) {
             return NULL;
     }
     
+    var_decl->data.var_decl.var_type = var_type;
     consume_token(parser, type_token.type);
     
     /* Nome da variável */
@@ -405,25 +407,44 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     /* Agora consumir o token da variável */
     consume_token(parser, TOKEN_VARIAVEL);
     
-    /* Verificar se tem dimensões (para texto e decimal) */
+    /* Verificar se tem dimensões */
     if (match_token(parser, TOKEN_ABRE_COLCH)) {
         consume_token(parser, TOKEN_ABRE_COLCH);
         
-        /* Ler dimensão */
+        /* Ler dimensão - aceitar tanto inteiro quanto decimal */
         Token dim_token = parser->lexer->current_token;
-        if (dim_token.type != TOKEN_NUMERO_INT) {
-            parser_error(parser, "Dimensão deve ser um número inteiro");
+        
+        if (dim_token.type == TOKEN_NUMERO_INT) {
+            var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
+            consume_token(parser, TOKEN_NUMERO_INT);
+        } else if (dim_token.type == TOKEN_NUMERO_DEC) {
+            /* Para decimal, aceitar número decimal como dimensão */
+            if (var_type == TYPE_DECIMAL) {
+                /* Parse the decimal number - use integer part as size */
+                double decimal_val = string_to_double(dim_token.value);
+                var_decl->data.var_decl.type_info.size = (int)decimal_val;
+                
+                /* Extract decimal part for scale if present */
+                char* dot_pos = strchr(dim_token.value, '.');
+                if (dot_pos) {
+                    char* decimal_part = dot_pos + 1;
+                    /* Count decimal places or use the decimal part as scale */
+                    var_decl->data.var_decl.type_info.scale = strlen(decimal_part);
+                }
+            } else {
+                /* For non-decimal types, just use integer part */
+                double decimal_val = string_to_double(dim_token.value);
+                var_decl->data.var_decl.type_info.size = (int)decimal_val;
+            }
+            consume_token(parser, TOKEN_NUMERO_DEC);
+        } else {
+            parser_error(parser, "Dimensão deve ser um número");
             ast_destroy(var_decl);
             return NULL;
         }
         
-        var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
-        consume_token(parser, TOKEN_NUMERO_INT);
-        
-        /* Para decimal, pode ter parte decimal */
-        if (var_decl->data.var_decl.var_type == TYPE_DECIMAL &&
-            match_token(parser, TOKEN_PONTO)) {
-            
+        /* Para decimal, pode ter formato adicional: decimal[5.2] onde 5 é size e 2 é scale */
+        if (var_type == TYPE_DECIMAL && match_token(parser, TOKEN_PONTO)) {
             consume_token(parser, TOKEN_PONTO);
             
             Token scale_token = parser->lexer->current_token;
@@ -446,7 +467,7 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     /* Adicionar à tabela de símbolos USANDO O NOME SALVO */
     Symbol* symbol = symbol_table_insert(
         parser->symbol_table,
-        var_name,  // Use the saved variable name
+        var_name,
         var_decl->data.var_decl.var_type
     );
     
