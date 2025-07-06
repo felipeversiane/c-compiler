@@ -391,23 +391,19 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     consume_token(parser, type_token.type);
     
     /* Nome da variável */
-    if (!expect_token(parser, TOKEN_VARIAVEL)) {
+    if (!match_token(parser, TOKEN_VARIAVEL)) {
+        parser_error(parser, "Esperado nome de variável");
         ast_destroy(var_decl);
         return NULL;
     }
     
-    /* Adicionar à tabela de símbolos */
-    Symbol* symbol = symbol_table_insert(
-        parser->symbol_table,
-        parser->lexer->current_token.value,
-        var_decl->data.var_decl.var_type
-    );
+    /* SALVAR O NOME DA VARIÁVEL ANTES DE CONSUMIR O TOKEN */
+    char var_name[MAX_IDENTIFIER_LENGTH];
+    strncpy(var_name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
+    var_name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
     
-    if (!symbol) {
-        parser_error(parser, "Variável já declarada neste escopo");
-        ast_destroy(var_decl);
-        return NULL;
-    }
+    /* Agora consumir o token da variável */
+    consume_token(parser, TOKEN_VARIAVEL);
     
     /* Verificar se tem dimensões (para texto e decimal) */
     if (match_token(parser, TOKEN_ABRE_COLCH)) {
@@ -446,6 +442,22 @@ static ASTNode* parse_var_declaration(Parser* parser) {
             return NULL;
         }
     }
+    
+    /* Adicionar à tabela de símbolos USANDO O NOME SALVO */
+    Symbol* symbol = symbol_table_insert(
+        parser->symbol_table,
+        var_name,  // Use the saved variable name
+        var_decl->data.var_decl.var_type
+    );
+    
+    if (!symbol) {
+        parser_error(parser, "Variável já declarada neste escopo");
+        ast_destroy(var_decl);
+        return NULL;
+    }
+    
+    /* Copiar informações de tipo para o símbolo */
+    symbol->type_info = var_decl->data.var_decl.type_info;
     
     /* Verificar atribuição inicial */
     if (match_token(parser, TOKEN_ATRIB)) {
