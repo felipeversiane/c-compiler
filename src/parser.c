@@ -608,6 +608,12 @@ static ASTNode* parse_if_statement(Parser* parser) {
         return NULL;
     }
     
+    /* Consumir '{' antes de chamar parse_block */
+    if (!expect_token(parser, TOKEN_ABRE_CHAVE)) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
     /* Bloco then */
     ASTNode* then_block = parse_block(parser);
     if (!then_block) {
@@ -617,9 +623,21 @@ static ASTNode* parse_if_statement(Parser* parser) {
     
     ast_add_child(if_stmt, then_block);
     
+    /* Consumir '}' após o bloco */
+    if (!expect_token(parser, TOKEN_FECHA_CHAVE)) {
+        ast_destroy(if_stmt);
+        return NULL;
+    }
+    
     /* Bloco else (opcional) */
     if (match_token(parser, TOKEN_SENAO)) {
         consume_token(parser, TOKEN_SENAO);
+        
+        /* Consumir '{' antes de chamar parse_block para o else */
+        if (!expect_token(parser, TOKEN_ABRE_CHAVE)) {
+            ast_destroy(if_stmt);
+            return NULL;
+        }
         
         ASTNode* else_block = parse_block(parser);
         if (!else_block) {
@@ -628,6 +646,12 @@ static ASTNode* parse_if_statement(Parser* parser) {
         }
         
         ast_add_child(if_stmt, else_block);
+        
+        /* Consumir '}' após o bloco else */
+        if (!expect_token(parser, TOKEN_FECHA_CHAVE)) {
+            ast_destroy(if_stmt);
+            return NULL;
+        }
     }
     
     return if_stmt;
@@ -689,6 +713,12 @@ static ASTNode* parse_for_statement(Parser* parser) {
         return NULL;
     }
     
+    /* Consumir '{' antes de chamar parse_block */
+    if (!expect_token(parser, TOKEN_ABRE_CHAVE)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
+    
     /* Bloco do loop */
     ASTNode* body = parse_block(parser);
     if (!body) {
@@ -697,6 +727,12 @@ static ASTNode* parse_for_statement(Parser* parser) {
     }
     
     ast_add_child(for_stmt, body);
+    
+    /* Consumir '}' após o bloco */
+    if (!expect_token(parser, TOKEN_FECHA_CHAVE)) {
+        ast_destroy(for_stmt);
+        return NULL;
+    }
     
     return for_stmt;
 }
