@@ -13,6 +13,7 @@ static ASTNode* parse_statement(Parser* parser);
 static ASTNode* parse_var_declaration(Parser* parser);
 static ASTNode* parse_expression(Parser* parser);
 static ASTNode* parse_if_statement(Parser* parser);
+static ASTNode* parse_assignment_without_semicolon(Parser* parser);
 static ASTNode* parse_for_statement(Parser* parser);
 static ASTNode* parse_while_statement(Parser* parser);
 static ASTNode* parse_return_statement(Parser* parser);
@@ -657,6 +658,51 @@ static ASTNode* parse_if_statement(Parser* parser) {
     return if_stmt;
 }
 
+/* Analisar atribuição sem ponto e vírgula (para uso em for loops) */
+static ASTNode* parse_assignment_without_semicolon(Parser* parser) {
+    ASTNode* assign = create_node(parser, AST_ASSIGNMENT);
+    if (!assign) return NULL;
+    
+    /* Variável */
+    if (!match_token(parser, TOKEN_VARIAVEL)) {
+        parser_error(parser, "Esperado nome de variável");
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    /* Criar nó para variável */
+    ASTNode* var = create_node(parser, AST_IDENTIFIER);
+    if (!var) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    strncpy(var->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
+    var->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
+    consume_token(parser, TOKEN_VARIAVEL);
+    
+    ast_add_child(assign, var);
+    
+    /* Operador de atribuição */
+    if (!expect_token(parser, TOKEN_ATRIB)) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    /* Expressão */
+    ASTNode* expr = parse_expression(parser);
+    if (!expr) {
+        ast_destroy(assign);
+        return NULL;
+    }
+    
+    ast_add_child(assign, expr);
+    
+    /* Note: NO semicolon expected here - that's handled by the calling function */
+    
+    return assign;
+}
+
 /* Analisar comando for */
 static ASTNode* parse_for_statement(Parser* parser) {
     ASTNode* for_stmt = create_node(parser, AST_FOR_STMT);
@@ -672,7 +718,7 @@ static ASTNode* parse_for_statement(Parser* parser) {
     }
     
     /* Inicialização */
-    ASTNode* init = parse_assignment(parser);
+    ASTNode* init = parse_assignment_without_semicolon(parser);
     if (!init) {
         ast_destroy(for_stmt);
         return NULL;
@@ -700,7 +746,7 @@ static ASTNode* parse_for_statement(Parser* parser) {
     }
     
     /* Incremento */
-    ASTNode* increment = parse_assignment(parser);
+    ASTNode* increment = parse_assignment_without_semicolon(parser);
     if (!increment) {
         ast_destroy(for_stmt);
         return NULL;
