@@ -12,8 +12,10 @@ Este é um compilador para uma linguagem de programação personalizada, desenvo
 - Analisador Sintático (parser.c)
 - Infraestrutura de Testes (Docker + CI)
 
-### Em Desenvolvimento 🚧
-- Melhorias no Parser (leitura completa do arquivo)
+### Em Melhorias 🚧
+- Parser (leitura completa do arquivo): no estado atual do projeto o parser ja funciona devidamente, cabem mais testes para verificar a eficiencia e erros dele
+
+### To-Do 
 - Analisador Semântico (em breve)
 
 ## Características da Linguagem
