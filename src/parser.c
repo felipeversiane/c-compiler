@@ -698,8 +698,6 @@ static ASTNode* parse_assignment_without_semicolon(Parser* parser) {
     
     ast_add_child(assign, expr);
     
-    /* Note: NO semicolon expected here - that's handled by the calling function */
-    
     return assign;
 }
 
@@ -921,11 +919,11 @@ static ASTNode* parse_assignment(Parser* parser) {
     }
     
     strncpy(var->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
-    ast_add_child(assign, var);
     
     /* Operador de atribuição */
     if (!expect_token(parser, TOKEN_ATRIB)) {
         ast_destroy(assign);
+        ast_destroy(var);
         return NULL;
     }
     
@@ -933,9 +931,12 @@ static ASTNode* parse_assignment(Parser* parser) {
     ASTNode* expr = parse_expression(parser);
     if (!expr) {
         ast_destroy(assign);
+        ast_destroy(var);
         return NULL;
     }
     
+    /* Adicionar filhos após todas as verificações */
+    ast_add_child(assign, var);
     ast_add_child(assign, expr);
     
     if (!expect_token(parser, TOKEN_PONTO_VIRG)) {
