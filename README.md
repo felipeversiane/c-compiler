@@ -28,7 +28,6 @@ Um compilador completo implementado em C seguindo as especificações ISO/IEC 98
 - Alocação e liberação automática
 - Detecção de vazamentos de memória
 - Guardas de memória para detecção de corrupção
-- Testes de estresse automáticos
 - Relatórios detalhados de uso
 - Limite configurável (padrão: 2048 KB)
 
@@ -160,7 +159,6 @@ c-compiler/
 - Verificação de escopo
 
 ### Testes de Integridade
-- Testes de estresse de memória automáticos
 - Validação de integridade da memória
 - Detecção de corrupção de dados
 
