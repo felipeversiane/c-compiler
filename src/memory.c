@@ -23,7 +23,7 @@ typedef struct {
 } InternalMemoryManager;
 
 /* Macros para debug */
-#define DEBUG_MEMORY 1
+#define DEBUG_MEMORY 0
 #define MEMORY_POISON_VALUE 0xDEADBEEF
 #define MEMORY_GUARD_SIZE 16
 
