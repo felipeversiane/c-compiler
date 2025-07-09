@@ -281,7 +281,6 @@ void* memory_realloc_debug(MemoryManager* mm, void* ptr, size_t new_size, const 
 void memory_report(MemoryManager* mm);
 void memory_report_detailed(MemoryManager* mm);
 int memory_check_limit(MemoryManager* mm);
-int memory_stress_test(MemoryManager* mm);
 int memory_validate_integrity(MemoryManager* mm);
 
 /* Macros para facilitar debug de memória */

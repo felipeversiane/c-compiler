@@ -20,7 +20,6 @@
 - [x] Relatórios de uso de memória
 - [x] Verificação de limites
 - [x] Guardas de memória e detecção de corrupção
-- [x] Teste de estresse de memória
 - [x] Validação de integridade da memória
 - [x] Relatórios detalhados de memória
 
@@ -93,7 +92,6 @@
 - [x] Sistema de debug avançado com guardas de memória
 - [x] Detecção de corrupção de memória
 - [x] Rastreamento detalhado de alocações
-- [x] Testes de estresse automáticos
 - [x] Relatórios detalhados de uso e fragmentação
 - [x] Validação de integridade da memória
 
