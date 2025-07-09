@@ -640,10 +640,10 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     
-    /* Verificar se função já existe */
+    /* Buscar função existente (já deve ter sido declarada na primeira passada) */
     Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
-    if (func && func->scope_level == ctx->symbol_table->scope_level) {
-        semantic_error(ctx, node->token, "Função já declarada");
+    if (!func) {
+        semantic_error(ctx, node->token, "Função não encontrada na tabela de símbolos");
         return;
     }
     
@@ -655,24 +655,6 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
     /* Validar parâmetros */
     if (!validate_function_parameters(ctx, node)) {
         return;
-    }
-    
-    /* Adicionar função à tabela de símbolos */
-    func = symbol_table_insert(ctx->symbol_table, func_name, node->data.function.return_type);
-    if (!func) {
-        semantic_error(ctx, node->token, "Erro ao declarar função");
-        return;
-    }
-    
-    func->is_function = 1;
-    func->param_count = node->data.function.param_count;
-    
-    /* Copiar informações dos parâmetros */
-    for (int i = 0; i < node->data.function.param_count; i++) {
-        func->param_types[i] = node->data.function.param_types[i];
-        func->param_type_infos[i] = node->data.function.param_type_infos[i];
-        strncpy(func->param_names[i], node->data.function.param_names[i], MAX_IDENTIFIER_LENGTH - 1);
-        func->param_names[i][MAX_IDENTIFIER_LENGTH - 1] = '\0';
     }
     
     /* Entrar em escopo da função */

@@ -20,6 +20,13 @@
 #define MAX_SYMBOL_TABLE_SIZE 1024
 #define MAX_ERROR_MESSAGE_LENGTH 512
 
+/* Configurações de debug */
+#define DEBUG_LEXER 0
+#define DEBUG_PARSER 0
+#define DEBUG_SEMANTIC 0
+#define DEBUG_INTERPRETER 0
+#define VERBOSE_OUTPUT 0
+
 /* Tipos de token */
 typedef enum {
     TOKEN_EOF = 0,
