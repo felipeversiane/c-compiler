@@ -434,21 +434,27 @@ static ASTNode* parse_var_declaration(Parser* parser) {
             var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
             consume_token(parser, TOKEN_NUMERO_INT);
         } else if (dim_token.type == TOKEN_NUMERO_DEC) {
-            /* Para decimal, aceitar número decimal como dimensão */
+            /* Para decimal, interpretar número decimal como precision.scale */
             if (var_type == TYPE_DECIMAL) {
-                /* Parse the decimal number - use integer part as size */
-                double decimal_val = string_to_double(dim_token.value);
-                var_decl->data.var_decl.type_info.size = (int)decimal_val;
-                
-                /* Extract decimal part for scale if present */
+                /* Parse decimal[3.2] onde 3 é precision e 2 é scale */
                 char* dot_pos = strchr(dim_token.value, '.');
                 if (dot_pos) {
-                    char* decimal_part = dot_pos + 1;
-                    /* Count decimal places or use the decimal part as scale */
-                    var_decl->data.var_decl.type_info.scale = strlen(decimal_part);
+                    /* Separar precision e scale */
+                    *dot_pos = '\0'; /* Temporariamente separar */
+                    char* precision_str = dim_token.value;
+                    char* scale_str = dot_pos + 1;
+                    
+                    var_decl->data.var_decl.type_info.precision = string_to_int(precision_str);
+                    var_decl->data.var_decl.type_info.scale = string_to_int(scale_str);
+                    
+                    *dot_pos = '.'; /* Restaurar o ponto */
+                } else {
+                    /* Se não tem ponto, usar como precision e scale=0 */
+                    var_decl->data.var_decl.type_info.precision = string_to_int(dim_token.value);
+                    var_decl->data.var_decl.type_info.scale = 0;
                 }
             } else {
-                /* For non-decimal types, just use integer part */
+                /* Para outros tipos, usar apenas a parte inteira como size */
                 double decimal_val = string_to_double(dim_token.value);
                 var_decl->data.var_decl.type_info.size = (int)decimal_val;
             }

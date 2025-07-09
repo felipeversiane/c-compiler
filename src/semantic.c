@@ -186,7 +186,7 @@ static int validate_type_dimensions(SemanticContext* ctx, DataType type, TypeInf
             
         case TYPE_DECIMAL:
             if (info.precision <= 0 || info.scale < 0) {
-                semantic_error(ctx, token, "Dimensões do decimal inválidas");
+                semantic_error(ctx, token, "Dimensões do decimal inválidas - precision deve ser > 0 e scale >= 0");
                 return 0;
             }
             break;
@@ -360,68 +360,46 @@ static DataType analyze_expression(SemanticContext* ctx, ASTNode* node) {
 
 /* Analisar declaração de variável */
 static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
-    /* Obter nome da variável do token */
-    const char* var_name = node->token.value;
+    /* O parser já inseriu a variável na tabela de símbolos */
+    /* Aqui só validamos se há nós filhos */
     
-    /* O nome da variável deve estar no token do nó de declaração */
-    /* Se não estiver, procurar nos filhos */
-    if (!var_name || strlen(var_name) == 0) {
-        /* O nome da variável pode estar em um nó filho identificador */
-        for (int i = 0; i < node->child_count; i++) {
-            if (node->children[i] && node->children[i]->type == AST_IDENTIFIER) {
-                var_name = node->children[i]->data.literal.string_val;
-                break;
-            }
-        }
-    }
-    
-    if (!var_name || strlen(var_name) == 0) {
-        semantic_error(ctx, node->token, "Nome de variável não encontrado");
+    if (!node || node->child_count == 0) {
         return;
     }
     
-    /* Validar nome da variável */
-    if (!validate_variable_name(var_name)) {
-        semantic_error(ctx, node->token, "Nome de variável inválido - deve começar com ! seguido de letra minúscula");
+    /* Buscar o nome da variável no primeiro filho (identificador) */
+    ASTNode* var_identifier = node->children[0];
+    if (!var_identifier || var_identifier->type != AST_IDENTIFIER) {
         return;
     }
     
-    /* Verificar se já existe no escopo atual */
-    Symbol* existing = symbol_table_lookup(ctx->symbol_table, var_name);
-    if (existing && existing->scope_level == ctx->symbol_table->scope_level) {
-        semantic_error(ctx, node->token, "Variável já declarada neste escopo");
+    const char* var_name = var_identifier->data.literal.string_val;
+    
+    /* Buscar na tabela de símbolos (deve existir, pois foi inserida pelo parser) */
+    Symbol* symbol = symbol_table_lookup(ctx->symbol_table, var_name);
+    if (!symbol) {
+        semantic_error(ctx, node->token, "Variável não encontrada na tabela de símbolos");
         return;
     }
     
     /* Validar dimensões do tipo */
-    if (!validate_type_dimensions(ctx, node->data.var_decl.var_type, node->data.var_decl.type_info, node->token)) {
+    if (!validate_type_dimensions(ctx, symbol->type, symbol->type_info, node->token)) {
         return;
     }
     
-    /* Verificar inicialização */
-    if (node->child_count > 0) {
-        /* Encontrar nó de inicialização (deve ser uma expressão, não um identificador) */
-        ASTNode* init_node = NULL;
-        for (int i = 0; i < node->child_count; i++) {
-            if (node->children[i] && node->children[i]->type != AST_IDENTIFIER) {
-                init_node = node->children[i];
-                break;
-            }
-        }
+    /* Verificar se há inicialização (segundo filho) */
+    if (node->child_count > 1) {
+        ASTNode* init_node = node->children[1];
+        DataType init_type = analyze_expression(ctx, init_node);
         
-        if (init_node) {
-            DataType init_type = analyze_expression(ctx, init_node);
-            if (init_type == TYPE_VOID) {
-                return;
-            }
-            
-            if (!check_type_compatibility(init_type, node->data.var_decl.var_type)) {
+        if (init_type != TYPE_VOID) {
+            if (!check_type_compatibility(init_type, symbol->type)) {
                 semantic_error(ctx, node->token, "Tipo incompatível na inicialização");
                 return;
             }
             
             /* Avisar sobre conversões implícitas */
-            if (init_type != node->data.var_decl.var_type) {
+            if (init_type != symbol->type) {
                 semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
             }
         }
