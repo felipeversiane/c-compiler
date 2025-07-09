@@ -158,3 +158,10 @@
 - **Operadores**: ✅ Todos implementados
 - **Estruturas de controle**: ✅ Implementadas
 - **Gerenciamento de memória**: ✅ Completo com relatórios
+
+### To-Fix
+
+- Precisa corrigir no analizador semantico erros em:
+    - Declaração uso de variaveis em estruturas SE,
+    - Declaração e atribuícoes das variaveis em PARA,
+    - Declaração de DECIMAL
