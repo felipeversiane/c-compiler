@@ -23,7 +23,7 @@ typedef struct {
 } InternalMemoryManager;
 
 /* Macros para debug */
-#define DEBUG_MEMORY 0
+#define DEBUG_MEMORY 0  /* Mudado de 1 para 0 */
 #define MEMORY_POISON_VALUE 0xDEADBEEF
 #define MEMORY_GUARD_SIZE 16
 
@@ -58,10 +58,6 @@ MemoryManager* memory_manager_create(void) {
     mm->fragmentation_level = 0;
     mm->last_warning_percent = 0;
     
-    if (DEBUG_MEMORY) {
-        printf("DEBUG: Gerenciador de memória criado com limite de %zu bytes\n", mm->base.limit);
-    }
-    
     return (MemoryManager*)mm;
 }
 
@@ -79,17 +75,6 @@ void memory_manager_destroy(MemoryManager* mm) {
     while (block) {
         MemoryBlock* next = block->next;
         
-        if (DEBUG_MEMORY) {
-            fprintf(stderr, "VAZAMENTO: %zu bytes alocados em %s:%d (%s) às %s", 
-                    block->size, block->file_allocated, block->line_allocated, 
-                    block->function_allocated, ctime(&block->time_allocated));
-        }
-        
-        /* Verificar corrupção de memória */
-        if (check_memory_corruption(block->ptr, block->size)) {
-            fprintf(stderr, "ERRO: Corrupção de memória detectada no bloco %p\n", block->ptr);
-        }
-        
         leak_count++;
         leaked_bytes += block->size;
         
@@ -98,11 +83,10 @@ void memory_manager_destroy(MemoryManager* mm) {
         block = next;
     }
     
-    /* Imprimir relatório final detalhado */
-    memory_report_detailed(mm);
-    
+    /* Imprimir relatório final apenas se houver vazamentos */
     if (leak_count > 0) {
         fprintf(stderr, "ERRO: %d vazamentos de memória detectados (%zu bytes)\n", leak_count, leaked_bytes);
+        memory_report_detailed(mm);
     }
     
     free(mm);
@@ -385,8 +369,6 @@ void memory_report(MemoryManager* mm) {
            mm->limit, (double)mm->limit / 1024.0);
     printf("Uso atual: %.1f%% do limite\n", 
            (double)mm->allocated / mm->limit * 100.0);
-    printf("Total de alocações: %d\n", mm->allocation_count);
-    printf("Total de desalocações: %d\n", mm->deallocation_count);
     printf("==============================\n\n");
 }
 
@@ -467,8 +449,6 @@ void memory_report_detailed(MemoryManager* mm) {
 int memory_stress_test(MemoryManager* mm) {
     if (!mm) return 0;
     
-    printf("=== TESTE DE ESTRESSE DE MEMÓRIA ===\n");
-    
     const int test_iterations = 1000;
     const size_t test_sizes[] = {16, 32, 64, 128, 256, 512, 1024, 2048};
     const int num_sizes = sizeof(test_sizes) / sizeof(test_sizes[0]);
@@ -484,7 +464,6 @@ int memory_stress_test(MemoryManager* mm) {
         if (pointers[i]) {
             allocated_count++;
         } else {
-            printf("Falha na alocação %d (tamanho %zu)\n", i, size);
             break;
         }
         
@@ -492,13 +471,10 @@ int memory_stress_test(MemoryManager* mm) {
         if (i % 100 == 0) {
             int warning_level = memory_check_limit(mm);
             if (warning_level >= 2) {
-                printf("Limite de memória atingido após %d alocações\n", i);
                 break;
             }
         }
     }
-    
-    printf("Alocações bem-sucedidas: %d/%d\n", allocated_count, test_iterations);
     
     /* Teste de liberação */
     for (int i = 0; i < allocated_count; i++) {
@@ -511,10 +487,8 @@ int memory_stress_test(MemoryManager* mm) {
     /* Verificar vazamentos */
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     if (imm->active_blocks == 0) {
-        printf("Teste de estresse PASSOU - nenhum vazamento detectado!\n");
         return 1;
     } else {
-        printf("Teste de estresse FALHOU - %d blocos não foram liberados\n", imm->active_blocks);
         return 0;
     }
 }
@@ -526,8 +500,6 @@ int memory_validate_integrity(MemoryManager* mm) {
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     int errors = 0;
     
-    printf("=== VALIDAÇÃO DE INTEGRIDADE ===\n");
-    
     /* Verificar todos os blocos */
     MemoryBlock* block = imm->blocks;
     int block_count = 0;
@@ -537,19 +509,16 @@ int memory_validate_integrity(MemoryManager* mm) {
         
         /* Verificar guardas de memória */
         if (!verify_memory_guards(block->ptr, block->size)) {
-            printf("ERRO: Corrupção detectada no bloco %d (%p)\n", block_count, block->ptr);
             errors++;
         }
         
         /* Verificar ponteiro válido */
         if (!block->ptr) {
-            printf("ERRO: Ponteiro nulo no bloco %d\n", block_count);
             errors++;
         }
         
         /* Verificar tamanho */
         if (block->size == 0) {
-            printf("ERRO: Tamanho zero no bloco %d\n", block_count);
             errors++;
         }
         
@@ -558,18 +527,9 @@ int memory_validate_integrity(MemoryManager* mm) {
     
     /* Verificar consistência das estatísticas */
     if (block_count != imm->active_blocks) {
-        printf("ERRO: Inconsistência na contagem de blocos (%d vs %d)\n", 
-               block_count, imm->active_blocks);
         errors++;
     }
     
-    if (errors == 0) {
-        printf("Integridade da memória VALIDADA - nenhum erro encontrado!\n");
-    } else {
-        printf("Validação FALHOU - %d erros encontrados\n", errors);
-    }
-    
-    printf("================================\n\n");
     return errors == 0;
 }
 

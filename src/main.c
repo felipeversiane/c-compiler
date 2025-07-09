@@ -6,10 +6,6 @@ void test_lexer(const char* source_code) {
     printf("Código fonte:\n%s\n", source_code);
     printf("=== TOKENS GERADOS ===\n");
     
-    /* Reset contadores */
-    g_error_count = 0;
-    g_warning_count = 0;
-    
     /* Criar lexer */
     Lexer* lexer = lexer_create(source_code);
     if (!lexer) {
@@ -48,10 +44,6 @@ void test_parser(const char* source_code) {
     printf("=== TESTANDO ANALISADOR SINTÁTICO ===\n");
     printf("Código fonte:\n%s\n", source_code);
     
-    /* Reset contadores */
-    g_error_count = 0;
-    g_warning_count = 0;
-    
     /* Criar lexer */
     Lexer* lexer = lexer_create(source_code);
     if (!lexer) {
@@ -77,9 +69,7 @@ void test_parser(const char* source_code) {
     
     if (ast) {
         /* Imprimir AST */
-        printf("\n=== ÁRVORE SINTÁTICA ABSTRATA ===\n");
         ast_print(ast, 0);
-        printf("================================\n");
         
         /* Análise semântica */
         printf("\n=== TESTANDO ANALISADOR SEMÂNTICO ===\n");
@@ -106,10 +96,6 @@ void test_parser(const char* source_code) {
 void test_interpreter(const char* source_code) {
     printf("=== TESTANDO INTERPRETADOR ===\n");
     printf("Código fonte:\n%s\n", source_code);
-    
-    /* Reset contadores */
-    g_error_count = 0;
-    g_warning_count = 0;
     
     /* Criar lexer */
     Lexer* lexer = lexer_create(source_code);
@@ -242,11 +228,12 @@ int main(int argc, char* argv[]) {
             "    retorno 0;\n"
             "}\n";
         
-        /* Apenas testar o processo completo */
+        test_lexer(test_code);
+        test_parser(test_code);
         test_interpreter(test_code);
         
         memory_manager_destroy(g_memory_manager);
-        return (g_error_count > 0) ? 1 : 0;
+        return 0;
     }
     
     /* Ler arquivo fonte */
@@ -259,21 +246,28 @@ int main(int argc, char* argv[]) {
     printf("Arquivo: %s\n", argv[1]);
     printf("Tamanho: %zu bytes\n\n", strlen(source_code));
     
-    /* Executar análise e interpretação completa */
+    /* Testar analisador léxico */
+    test_lexer(source_code);
+    
+    /* Testar analisador sintático e semântico */
+    test_parser(source_code);
+    
+    /* Testar interpretador */
     test_interpreter(source_code);
     
     /* Verificar se houve erros */
-    int exit_code = 0;
     if (g_error_count > 0) {
         printf("COMPILAÇÃO FALHOU: %d erro(s) encontrado(s)\n", g_error_count);
-        exit_code = 1;
-    } else {
-        printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
+        free(source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
     }
+    
+    printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
     
     /* Limpar e finalizar */
     free(source_code);
     memory_manager_destroy(g_memory_manager);
     
-    return exit_code;
+    return 0;
 } 

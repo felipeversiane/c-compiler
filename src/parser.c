@@ -400,9 +400,6 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         return NULL;
     }
     
-    /* SALVAR O NOME DA VARIÁVEL NO TOKEN DO NÓ AST */
-    var_decl->token = parser->lexer->current_token; /* Salvar o token da variável */
-    
     /* SALVAR O NOME DA VARIÁVEL ANTES DE CONSUMIR O TOKEN */
     char var_name[MAX_IDENTIFIER_LENGTH];
     strncpy(var_name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
@@ -410,18 +407,6 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     
     /* Agora consumir o token da variável */
     consume_token(parser, TOKEN_VARIAVEL);
-    
-    /* Criar nó identificador para o nome da variável */
-    ASTNode* var_identifier = create_node(parser, AST_IDENTIFIER);
-    if (!var_identifier) {
-        ast_destroy(var_decl);
-        return NULL;
-    }
-    strncpy(var_identifier->data.literal.string_val, var_name, MAX_STRING_LENGTH - 1);
-    var_identifier->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
-    
-    /* Adicionar identificador como primeiro filho */
-    ast_add_child(var_decl, var_identifier);
     
     /* Verificar se tem dimensões */
     if (match_token(parser, TOKEN_ABRE_COLCH)) {
@@ -434,27 +419,21 @@ static ASTNode* parse_var_declaration(Parser* parser) {
             var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
             consume_token(parser, TOKEN_NUMERO_INT);
         } else if (dim_token.type == TOKEN_NUMERO_DEC) {
-            /* Para decimal, interpretar número decimal como precision.scale */
+            /* Para decimal, aceitar número decimal como dimensão */
             if (var_type == TYPE_DECIMAL) {
-                /* Parse decimal[3.2] onde 3 é precision e 2 é scale */
+                /* Parse the decimal number - use integer part as size */
+                double decimal_val = string_to_double(dim_token.value);
+                var_decl->data.var_decl.type_info.size = (int)decimal_val;
+                
+                /* Extract decimal part for scale if present */
                 char* dot_pos = strchr(dim_token.value, '.');
                 if (dot_pos) {
-                    /* Separar precision e scale */
-                    *dot_pos = '\0'; /* Temporariamente separar */
-                    char* precision_str = dim_token.value;
-                    char* scale_str = dot_pos + 1;
-                    
-                    var_decl->data.var_decl.type_info.precision = string_to_int(precision_str);
-                    var_decl->data.var_decl.type_info.scale = string_to_int(scale_str);
-                    
-                    *dot_pos = '.'; /* Restaurar o ponto */
-                } else {
-                    /* Se não tem ponto, usar como precision e scale=0 */
-                    var_decl->data.var_decl.type_info.precision = string_to_int(dim_token.value);
-                    var_decl->data.var_decl.type_info.scale = 0;
+                    char* decimal_part = dot_pos + 1;
+                    /* Count decimal places or use the decimal part as scale */
+                    var_decl->data.var_decl.type_info.scale = strlen(decimal_part);
                 }
             } else {
-                /* Para outros tipos, usar apenas a parte inteira como size */
+                /* For non-decimal types, just use integer part */
                 double decimal_val = string_to_double(dim_token.value);
                 var_decl->data.var_decl.type_info.size = (int)decimal_val;
             }

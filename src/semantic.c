@@ -186,7 +186,7 @@ static int validate_type_dimensions(SemanticContext* ctx, DataType type, TypeInf
             
         case TYPE_DECIMAL:
             if (info.precision <= 0 || info.scale < 0) {
-                semantic_error(ctx, token, "Dimensões do decimal inválidas - precision deve ser > 0 e scale >= 0");
+                semantic_error(ctx, token, "Dimensões do decimal inválidas");
                 return 0;
             }
             break;
@@ -360,48 +360,41 @@ static DataType analyze_expression(SemanticContext* ctx, ASTNode* node) {
 
 /* Analisar declaração de variável */
 static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
-    /* O parser já inseriu a variável na tabela de símbolos */
-    /* Aqui só validamos se há nós filhos */
+    const char* var_name = node->token.value;
     
-    if (!node || node->child_count == 0) {
+    /* Validar nome da variável */
+    if (!validate_variable_name(var_name)) {
+        semantic_error(ctx, node->token, "Nome de variável inválido - deve começar com ! seguido de letra minúscula");
         return;
     }
     
-    /* Buscar o nome da variável no primeiro filho (identificador) */
-    ASTNode* var_identifier = node->children[0];
-    if (!var_identifier || var_identifier->type != AST_IDENTIFIER) {
-        return;
-    }
-    
-    const char* var_name = var_identifier->data.literal.string_val;
-    
-    /* Buscar na tabela de símbolos (deve existir, pois foi inserida pelo parser) */
-    Symbol* symbol = symbol_table_lookup(ctx->symbol_table, var_name);
-    if (!symbol) {
-        semantic_error(ctx, node->token, "Variável não encontrada na tabela de símbolos");
+    /* Verificar se já existe no escopo atual */
+    Symbol* existing = symbol_table_lookup(ctx->symbol_table, var_name);
+    if (existing && existing->scope_level == ctx->symbol_table->scope_level) {
+        semantic_error(ctx, node->token, "Variável já declarada neste escopo");
         return;
     }
     
     /* Validar dimensões do tipo */
-    if (!validate_type_dimensions(ctx, symbol->type, symbol->type_info, node->token)) {
+    if (!validate_type_dimensions(ctx, node->data.var_decl.var_type, node->data.var_decl.type_info, node->token)) {
         return;
     }
     
-    /* Verificar se há inicialização (segundo filho) */
-    if (node->child_count > 1) {
-        ASTNode* init_node = node->children[1];
-        DataType init_type = analyze_expression(ctx, init_node);
+    /* Verificar inicialização */
+    if (node->child_count > 0) {
+        DataType init_type = analyze_expression(ctx, node->children[0]);
+        if (init_type == TYPE_VOID) {
+            return;
+        }
         
-        if (init_type != TYPE_VOID) {
-            if (!check_type_compatibility(init_type, symbol->type)) {
-                semantic_error(ctx, node->token, "Tipo incompatível na inicialização");
-                return;
-            }
-            
-            /* Avisar sobre conversões implícitas */
-            if (init_type != symbol->type) {
-                semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
-            }
+        if (!check_type_compatibility(init_type, node->data.var_decl.var_type)) {
+            semantic_error(ctx, node->token, "Tipo incompatível na inicialização");
+            return;
+        }
+        
+        /* Avisar sobre conversões implícitas */
+        if (init_type != node->data.var_decl.var_type) {
+            semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
         }
     }
 }
@@ -605,13 +598,7 @@ static void analyze_statement(SemanticContext* ctx, ASTNode* node) {
             break;
             
         case AST_FUNCTION_CALL:
-            /* Verificar se é uma palavra-chave especial (leia/escreva) */
-            if (node->token.type == TOKEN_LEIA || node->token.type == TOKEN_ESCREVA) {
-                analyze_io_statement(ctx, node);
-            } else {
-                /* É uma chamada de função normal */
-                analyze_expression(ctx, node);
-            }
+            analyze_expression(ctx, node);
             break;
             
         case AST_ASSIGNMENT:
@@ -653,10 +640,10 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     
-    /* Buscar função existente (já deve ter sido declarada na primeira passada) */
+    /* Verificar se função já existe */
     Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
-    if (!func) {
-        semantic_error(ctx, node->token, "Função não encontrada na tabela de símbolos");
+    if (func && func->scope_level == ctx->symbol_table->scope_level) {
+        semantic_error(ctx, node->token, "Função já declarada");
         return;
     }
     
@@ -668,6 +655,24 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
     /* Validar parâmetros */
     if (!validate_function_parameters(ctx, node)) {
         return;
+    }
+    
+    /* Adicionar função à tabela de símbolos */
+    func = symbol_table_insert(ctx->symbol_table, func_name, node->data.function.return_type);
+    if (!func) {
+        semantic_error(ctx, node->token, "Erro ao declarar função");
+        return;
+    }
+    
+    func->is_function = 1;
+    func->param_count = node->data.function.param_count;
+    
+    /* Copiar informações dos parâmetros */
+    for (int i = 0; i < node->data.function.param_count; i++) {
+        func->param_types[i] = node->data.function.param_types[i];
+        func->param_type_infos[i] = node->data.function.param_type_infos[i];
+        strncpy(func->param_names[i], node->data.function.param_names[i], MAX_IDENTIFIER_LENGTH - 1);
+        func->param_names[i][MAX_IDENTIFIER_LENGTH - 1] = '\0';
     }
     
     /* Entrar em escopo da função */
@@ -756,7 +761,44 @@ static void analyze_program(SemanticContext* ctx, ASTNode* node) {
     /* Segunda passada: analisar corpos das funções */
     for (int i = 0; i < node->child_count; i++) {
         if (node->children[i]->type == AST_FUNCTION_DEF) {
-            analyze_function(ctx, node->children[i]);
+            /* Pular a declaração se já foi feita na primeira passada */
+            const char* func_name = node->children[i]->data.function.name;
+            Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
+            
+            if (func && func->is_function) {
+                /* Analisar corpo da função sem redeclarar */
+                ctx->current_function = func;
+                
+                /* Entrar em escopo da função */
+                symbol_table_enter_scope(ctx->symbol_table);
+                
+                /* Adicionar parâmetros ao escopo da função */
+                for (int j = 0; j < node->children[i]->data.function.param_count; j++) {
+                    Symbol* param = symbol_table_insert(ctx->symbol_table, 
+                                                       node->children[i]->data.function.param_names[j], 
+                                                       node->children[i]->data.function.param_types[j]);
+                    if (param) {
+                        param->is_parameter = 1;
+                        param->is_initialized = 1; /* Parâmetros são sempre inicializados */
+                        param->type_info = node->children[i]->data.function.param_type_infos[j];
+                    }
+                }
+                
+                /* Analisar corpo da função */
+                if (node->children[i]->child_count > 0) {
+                    analyze_block(ctx, node->children[i]->children[0]);
+                }
+                
+                /* Verificar se função não-void tem retorno */
+                if (func->type != TYPE_VOID && strcmp(func_name, "principal") != 0) {
+                    semantic_warning(ctx, node->children[i]->token, "Função pode não ter retorno em todos os caminhos");
+                }
+                
+                ctx->current_function = NULL;
+                
+                /* Sair do escopo da função */
+                symbol_table_exit_scope(ctx->symbol_table);
+            }
         }
     }
     

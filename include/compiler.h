@@ -20,13 +20,6 @@
 #define MAX_SYMBOL_TABLE_SIZE 1024
 #define MAX_ERROR_MESSAGE_LENGTH 512
 
-/* Configurações de debug */
-#define DEBUG_LEXER 0
-#define DEBUG_PARSER 0
-#define DEBUG_SEMANTIC 0
-#define DEBUG_INTERPRETER 0
-#define VERBOSE_OUTPUT 0
-
 /* Tipos de token */
 typedef enum {
     TOKEN_EOF = 0,
@@ -116,8 +109,8 @@ typedef enum {
 /* Estrutura para dimensões de arrays */
 typedef struct {
     int size;           /* Para texto[size] */
-    int precision;      /* Para decimal[precision.scale] - parte antes do ponto */
-    int scale;          /* Para decimal[precision.scale] - parte depois do ponto */
+    int precision;      /* Para decimal[antes.depois] - parte antes */
+    int scale;          /* Para decimal[antes.depois] - parte depois */
 } TypeInfo;
 
 /* Entrada da tabela de símbolos */
