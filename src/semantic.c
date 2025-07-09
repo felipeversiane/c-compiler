@@ -308,9 +308,19 @@ static DataType analyze_expression(SemanticContext* ctx, ASTNode* node) {
         
         case AST_FUNCTION_CALL: {
             const char* func_name = node->data.literal.string_val;
+
+            //printf("DEBUG: Analyzing expression node type %d\n", node->type); // Debugging -----> RETRIVING AST NODE
+            //printf("DEBUG: Analyzing expression node token value '%s'\n", node->token.value); // Debugging -----> RETRIVING AST NODE
+            //ast_print(node, 0); // Debugging -----> RETRIVING AST NODE
+
+            if (strcmp(node->token.value, "escreva") == 0 ||
+                strcmp(node->token.value, "leia") == 0) {
+                return TYPE_VOID; // Funções de I/O não retornam valor
+            }
             
             /* Validar nome da função */
             if (!validate_function_name(func_name)) {
+                printf("DEBUG: func_name='%s'\n", func_name); // Debugging -----> RETRIVING  ''
                 semantic_error(ctx, node->token, "Nome de função inválido - deve ser 'principal' ou começar com '__'");
                 return TYPE_VOID;
             }
@@ -364,8 +374,17 @@ static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
     
     /* Validar nome da variável */
     if (!validate_variable_name(var_name)) {
-        semantic_error(ctx, node->token, "Nome de variável inválido - deve começar com ! seguido de letra minúscula");
-        return;
+        if (strcmp(var_name, "inteiro") == 0 ||
+            strcmp(var_name, "decimal") == 0 ||
+            strcmp(var_name, "texto") == 0) {
+            // This block will execute if var_name is NOT "inteiro", NOT "decimal", AND NOT "texto"
+            // printf("DEBUG: var_name='%s'\n", var_name); // Add this for debugging
+            // printf("var_name is not one of the expected types.\n");
+        } else {
+            printf("var_name is one of the expected types.\n");
+            semantic_error(ctx, node->token, "Nome de variável inválido - deve começar com ! seguido de letra minúscula");
+            return;
+        }
     }
     
     /* Verificar se já existe no escopo atual */
