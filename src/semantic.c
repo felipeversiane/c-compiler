@@ -761,44 +761,7 @@ static void analyze_program(SemanticContext* ctx, ASTNode* node) {
     /* Segunda passada: analisar corpos das funções */
     for (int i = 0; i < node->child_count; i++) {
         if (node->children[i]->type == AST_FUNCTION_DEF) {
-            /* Pular a declaração se já foi feita na primeira passada */
-            const char* func_name = node->children[i]->data.function.name;
-            Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
-            
-            if (func && func->is_function) {
-                /* Analisar corpo da função sem redeclarar */
-                ctx->current_function = func;
-                
-                /* Entrar em escopo da função */
-                symbol_table_enter_scope(ctx->symbol_table);
-                
-                /* Adicionar parâmetros ao escopo da função */
-                for (int j = 0; j < node->children[i]->data.function.param_count; j++) {
-                    Symbol* param = symbol_table_insert(ctx->symbol_table, 
-                                                       node->children[i]->data.function.param_names[j], 
-                                                       node->children[i]->data.function.param_types[j]);
-                    if (param) {
-                        param->is_parameter = 1;
-                        param->is_initialized = 1; /* Parâmetros são sempre inicializados */
-                        param->type_info = node->children[i]->data.function.param_type_infos[j];
-                    }
-                }
-                
-                /* Analisar corpo da função */
-                if (node->children[i]->child_count > 0) {
-                    analyze_block(ctx, node->children[i]->children[0]);
-                }
-                
-                /* Verificar se função não-void tem retorno */
-                if (func->type != TYPE_VOID && strcmp(func_name, "principal") != 0) {
-                    semantic_warning(ctx, node->children[i]->token, "Função pode não ter retorno em todos os caminhos");
-                }
-                
-                ctx->current_function = NULL;
-                
-                /* Sair do escopo da função */
-                symbol_table_exit_scope(ctx->symbol_table);
-            }
+            analyze_function(ctx, node->children[i]);
         }
     }
     
