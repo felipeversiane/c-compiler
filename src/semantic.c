@@ -360,7 +360,25 @@ static DataType analyze_expression(SemanticContext* ctx, ASTNode* node) {
 
 /* Analisar declaração de variável */
 static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
+    /* Obter nome da variável do token */
     const char* var_name = node->token.value;
+    
+    /* O nome da variável deve estar no token do nó de declaração */
+    /* Se não estiver, procurar nos filhos */
+    if (!var_name || strlen(var_name) == 0) {
+        /* O nome da variável pode estar em um nó filho identificador */
+        for (int i = 0; i < node->child_count; i++) {
+            if (node->children[i] && node->children[i]->type == AST_IDENTIFIER) {
+                var_name = node->children[i]->data.literal.string_val;
+                break;
+            }
+        }
+    }
+    
+    if (!var_name || strlen(var_name) == 0) {
+        semantic_error(ctx, node->token, "Nome de variável não encontrado");
+        return;
+    }
     
     /* Validar nome da variável */
     if (!validate_variable_name(var_name)) {
@@ -382,19 +400,30 @@ static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
     
     /* Verificar inicialização */
     if (node->child_count > 0) {
-        DataType init_type = analyze_expression(ctx, node->children[0]);
-        if (init_type == TYPE_VOID) {
-            return;
+        /* Encontrar nó de inicialização (deve ser uma expressão, não um identificador) */
+        ASTNode* init_node = NULL;
+        for (int i = 0; i < node->child_count; i++) {
+            if (node->children[i] && node->children[i]->type != AST_IDENTIFIER) {
+                init_node = node->children[i];
+                break;
+            }
         }
         
-        if (!check_type_compatibility(init_type, node->data.var_decl.var_type)) {
-            semantic_error(ctx, node->token, "Tipo incompatível na inicialização");
-            return;
-        }
-        
-        /* Avisar sobre conversões implícitas */
-        if (init_type != node->data.var_decl.var_type) {
-            semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
+        if (init_node) {
+            DataType init_type = analyze_expression(ctx, init_node);
+            if (init_type == TYPE_VOID) {
+                return;
+            }
+            
+            if (!check_type_compatibility(init_type, node->data.var_decl.var_type)) {
+                semantic_error(ctx, node->token, "Tipo incompatível na inicialização");
+                return;
+            }
+            
+            /* Avisar sobre conversões implícitas */
+            if (init_type != node->data.var_decl.var_type) {
+                semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
+            }
         }
     }
 }
@@ -598,7 +627,13 @@ static void analyze_statement(SemanticContext* ctx, ASTNode* node) {
             break;
             
         case AST_FUNCTION_CALL:
-            analyze_expression(ctx, node);
+            /* Verificar se é uma palavra-chave especial (leia/escreva) */
+            if (node->token.type == TOKEN_LEIA || node->token.type == TOKEN_ESCREVA) {
+                analyze_io_statement(ctx, node);
+            } else {
+                /* É uma chamada de função normal */
+                analyze_expression(ctx, node);
+            }
             break;
             
         case AST_ASSIGNMENT:

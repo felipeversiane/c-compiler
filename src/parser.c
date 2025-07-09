@@ -400,6 +400,9 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         return NULL;
     }
     
+    /* SALVAR O NOME DA VARIÁVEL NO TOKEN DO NÓ AST */
+    var_decl->token = parser->lexer->current_token; /* Salvar o token da variável */
+    
     /* SALVAR O NOME DA VARIÁVEL ANTES DE CONSUMIR O TOKEN */
     char var_name[MAX_IDENTIFIER_LENGTH];
     strncpy(var_name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
@@ -407,6 +410,18 @@ static ASTNode* parse_var_declaration(Parser* parser) {
     
     /* Agora consumir o token da variável */
     consume_token(parser, TOKEN_VARIAVEL);
+    
+    /* Criar nó identificador para o nome da variável */
+    ASTNode* var_identifier = create_node(parser, AST_IDENTIFIER);
+    if (!var_identifier) {
+        ast_destroy(var_decl);
+        return NULL;
+    }
+    strncpy(var_identifier->data.literal.string_val, var_name, MAX_STRING_LENGTH - 1);
+    var_identifier->data.literal.string_val[MAX_STRING_LENGTH - 1] = '\0';
+    
+    /* Adicionar identificador como primeiro filho */
+    ast_add_child(var_decl, var_identifier);
     
     /* Verificar se tem dimensões */
     if (match_token(parser, TOKEN_ABRE_COLCH)) {
