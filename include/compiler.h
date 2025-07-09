@@ -6,6 +6,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
+#include <time.h>
+#include <stdint.h>
 
 /* Configurações globais */
 #define MAX_MEMORY_KB 2048
@@ -271,10 +273,21 @@ typedef struct {
 MemoryManager* memory_manager_create(void);
 void memory_manager_destroy(MemoryManager* mm);
 void* memory_alloc(MemoryManager* mm, size_t size);
+void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int line, const char* function);
 void memory_free(MemoryManager* mm, void* ptr);
+void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line, const char* function);
 void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size);
+void* memory_realloc_debug(MemoryManager* mm, void* ptr, size_t new_size, const char* file, int line, const char* function);
 void memory_report(MemoryManager* mm);
+void memory_report_detailed(MemoryManager* mm);
 int memory_check_limit(MemoryManager* mm);
+int memory_stress_test(MemoryManager* mm);
+int memory_validate_integrity(MemoryManager* mm);
+
+/* Macros para facilitar debug de memória */
+#define MEMORY_ALLOC(mm, size) memory_alloc_debug(mm, size, __FILE__, __LINE__, __func__)
+#define MEMORY_FREE(mm, ptr) memory_free_debug(mm, ptr, __FILE__, __LINE__, __func__)
+#define MEMORY_REALLOC(mm, ptr, size) memory_realloc_debug(mm, ptr, size, __FILE__, __LINE__, __func__)
 
 /* Analisador Léxico */
 Lexer* lexer_create(const char* source);

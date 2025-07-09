@@ -4,6 +4,10 @@
 typedef struct MemoryBlock {
     void* ptr;
     size_t size;
+    int line_allocated;
+    const char* file_allocated;
+    const char* function_allocated;
+    time_t time_allocated;
     struct MemoryBlock* next;
 } MemoryBlock;
 
@@ -11,9 +15,27 @@ typedef struct MemoryBlock {
 typedef struct {
     MemoryManager base;
     MemoryBlock* blocks;
+    int active_blocks;
+    size_t total_allocated;
+    size_t total_freed;
+    int fragmentation_level;
+    int last_warning_percent;
 } InternalMemoryManager;
 
-/* Criar gerenciador de memória */
+/* Macros para debug */
+#define DEBUG_MEMORY 1
+#define MEMORY_POISON_VALUE 0xDEADBEEF
+#define MEMORY_GUARD_SIZE 16
+
+/* Funções auxiliares */
+static void poison_memory(void* ptr, size_t size);
+static int check_memory_corruption(void* ptr, size_t size);
+static void add_memory_guards(void* ptr, size_t size);
+static int verify_memory_guards(void* ptr, size_t size);
+static void log_memory_operation(const char* operation, void* ptr, size_t size, const char* file, int line);
+static void calculate_fragmentation(InternalMemoryManager* imm);
+
+/* Criar gerenciador de memória com inicialização completa */
 MemoryManager* memory_manager_create(void) {
     InternalMemoryManager* mm = (InternalMemoryManager*)malloc(sizeof(InternalMemoryManager));
     if (!mm) {
@@ -21,89 +43,157 @@ MemoryManager* memory_manager_create(void) {
         return NULL;
     }
     
+    /* Inicializar estrutura base */
     mm->base.allocated = 0;
     mm->base.peak_usage = 0;
     mm->base.limit = MAX_MEMORY_BYTES;
     mm->base.allocation_count = 0;
     mm->base.deallocation_count = 0;
+    
+    /* Inicializar estrutura interna */
     mm->blocks = NULL;
+    mm->active_blocks = 0;
+    mm->total_allocated = 0;
+    mm->total_freed = 0;
+    mm->fragmentation_level = 0;
+    mm->last_warning_percent = 0;
+    
+    if (DEBUG_MEMORY) {
+        printf("DEBUG: Gerenciador de memória criado com limite de %zu bytes\n", mm->base.limit);
+    }
     
     return (MemoryManager*)mm;
 }
 
-/* Destruir gerenciador de memória */
+/* Destruir gerenciador de memória com verificação completa */
 void memory_manager_destroy(MemoryManager* mm) {
     if (!mm) return;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     
-    /* Liberar todos os blocos restantes */
+    /* Verificar vazamentos */
+    int leak_count = 0;
+    size_t leaked_bytes = 0;
     MemoryBlock* block = imm->blocks;
+    
     while (block) {
         MemoryBlock* next = block->next;
-        fprintf(stderr, "AVISO: Vazamento de memória detectado - %zu bytes em %p\n", 
-                block->size, block->ptr);
+        
+        if (DEBUG_MEMORY) {
+            fprintf(stderr, "VAZAMENTO: %zu bytes alocados em %s:%d (%s) às %s", 
+                    block->size, block->file_allocated, block->line_allocated, 
+                    block->function_allocated, ctime(&block->time_allocated));
+        }
+        
+        /* Verificar corrupção de memória */
+        if (check_memory_corruption(block->ptr, block->size)) {
+            fprintf(stderr, "ERRO: Corrupção de memória detectada no bloco %p\n", block->ptr);
+        }
+        
+        leak_count++;
+        leaked_bytes += block->size;
+        
         free(block->ptr);
         free(block);
         block = next;
     }
     
-    /* Imprimir relatório final */
-    memory_report(mm);
+    /* Imprimir relatório final detalhado */
+    memory_report_detailed(mm);
+    
+    if (leak_count > 0) {
+        fprintf(stderr, "ERRO: %d vazamentos de memória detectados (%zu bytes)\n", leak_count, leaked_bytes);
+    }
     
     free(mm);
 }
 
-/* Alocar memória */
-void* memory_alloc(MemoryManager* mm, size_t size) {
+/* Alocar memória com rastreamento avançado */
+void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int line, const char* function) {
     if (!mm || size == 0) return NULL;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     
     /* Verificar limite de memória */
     if (mm->allocated + size > mm->limit) {
-        error_report(ERROR_MEMORY, 0, 0, "Memória Insuficiente");
-        fprintf(stderr, "Tentativa de alocar %zu bytes, mas apenas %zu bytes disponíveis\n",
-                size, mm->limit - mm->allocated);
+        error_report(ERROR_MEMORY, line, 0, "Memória Insuficiente");
+        if (DEBUG_MEMORY) {
+            fprintf(stderr, "ERRO: Tentativa de alocar %zu bytes, mas apenas %zu bytes disponíveis\n",
+                    size, mm->limit - mm->allocated);
+        }
         return NULL;
     }
     
-    /* Alocar memória */
-    void* ptr = malloc(size);
-    if (!ptr) {
-        error_report(ERROR_MEMORY, 0, 0, "Falha na alocação de memória do sistema");
+    /* Alocar memória com guardas */
+    size_t total_size = size + (2 * MEMORY_GUARD_SIZE);
+    void* raw_ptr = malloc(total_size);
+    if (!raw_ptr) {
+        error_report(ERROR_MEMORY, line, 0, "Falha na alocação de memória do sistema");
         return NULL;
     }
+    
+    /* Configurar guardas de memória */
+    add_memory_guards(raw_ptr, size);
+    void* user_ptr = (char*)raw_ptr + MEMORY_GUARD_SIZE;
+    
+    /* Inicializar memória com padrão */
+    poison_memory(user_ptr, size);
     
     /* Criar bloco de rastreamento */
     MemoryBlock* block = (MemoryBlock*)malloc(sizeof(MemoryBlock));
     if (!block) {
-        free(ptr);
-        error_report(ERROR_MEMORY, 0, 0, "Falha ao criar bloco de rastreamento");
+        free(raw_ptr);
+        error_report(ERROR_MEMORY, line, 0, "Falha ao criar bloco de rastreamento");
         return NULL;
     }
     
-    block->ptr = ptr;
+    block->ptr = raw_ptr;
     block->size = size;
+    block->line_allocated = line;
+    block->file_allocated = file;
+    block->function_allocated = function;
+    block->time_allocated = time(NULL);
     block->next = imm->blocks;
     imm->blocks = block;
     
     /* Atualizar estatísticas */
     mm->allocated += size;
     mm->allocation_count++;
+    imm->active_blocks++;
+    imm->total_allocated += size;
     
     if (mm->allocated > mm->peak_usage) {
         mm->peak_usage = mm->allocated;
     }
     
-    /* Verificar avisos de memória */
-    memory_check_limit(mm);
+    /* Calcular fragmentação */
+    calculate_fragmentation(imm);
     
-    return ptr;
+    /* Verificar avisos de memória */
+    int warning_level = memory_check_limit(mm);
+    if (warning_level > 0) {
+        int current_percent = (mm->allocated * 100) / mm->limit;
+        if (current_percent > imm->last_warning_percent + 5) {
+            imm->last_warning_percent = current_percent;
+            if (DEBUG_MEMORY) {
+                printf("DEBUG: Uso de memória aumentou para %d%%\n", current_percent);
+            }
+        }
+    }
+    
+    /* Log da operação */
+    log_memory_operation("ALLOC", user_ptr, size, file, line);
+    
+    return user_ptr;
 }
 
-/* Liberar memória */
-void memory_free(MemoryManager* mm, void* ptr) {
+/* Wrapper para alocação normal */
+void* memory_alloc(MemoryManager* mm, size_t size) {
+    return memory_alloc_debug(mm, size, __FILE__, __LINE__, __func__);
+}
+
+/* Liberar memória com verificação completa */
+void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line, const char* function) {
     if (!mm || !ptr) return;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
@@ -113,7 +203,13 @@ void memory_free(MemoryManager* mm, void* ptr) {
     MemoryBlock* block = imm->blocks;
     
     while (block) {
-        if (block->ptr == ptr) {
+        void* user_ptr = (char*)block->ptr + MEMORY_GUARD_SIZE;
+        if (user_ptr == ptr) {
+            /* Verificar guardas de memória */
+            if (!verify_memory_guards(block->ptr, block->size)) {
+                fprintf(stderr, "ERRO: Corrupção de memória detectada ao liberar %p\n", ptr);
+            }
+            
             /* Remover da lista */
             if (prev) {
                 prev->next = block->next;
@@ -124,10 +220,19 @@ void memory_free(MemoryManager* mm, void* ptr) {
             /* Atualizar estatísticas */
             mm->allocated -= block->size;
             mm->deallocation_count++;
+            imm->active_blocks--;
+            imm->total_freed += block->size;
+            
+            /* Poisonar memória antes de liberar */
+            poison_memory(ptr, block->size);
+            
+            /* Log da operação */
+            log_memory_operation("FREE", ptr, block->size, file, line);
             
             /* Liberar memória */
-            free(ptr);
+            free(block->ptr);
             free(block);
+            
             return;
         }
         
@@ -136,19 +241,24 @@ void memory_free(MemoryManager* mm, void* ptr) {
     }
     
     /* Ponteiro não encontrado - possível erro */
-    fprintf(stderr, "AVISO: Tentativa de liberar ponteiro não rastreado: %p\n", ptr);
+    fprintf(stderr, "ERRO: Tentativa de liberar ponteiro não rastreado: %p em %s:%d\n", ptr, file, line);
 }
 
-/* Realocar memória */
-void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size) {
+/* Wrapper para liberação normal */
+void memory_free(MemoryManager* mm, void* ptr) {
+    memory_free_debug(mm, ptr, __FILE__, __LINE__, __func__);
+}
+
+/* Realocar memória com verificação completa */
+void* memory_realloc_debug(MemoryManager* mm, void* ptr, size_t new_size, const char* file, int line, const char* function) {
     if (!mm) return NULL;
     
     if (!ptr) {
-        return memory_alloc(mm, new_size);
+        return memory_alloc_debug(mm, new_size, file, line, function);
     }
     
     if (new_size == 0) {
-        memory_free(mm, ptr);
+        memory_free_debug(mm, ptr, file, line, function);
         return NULL;
     }
     
@@ -157,53 +267,90 @@ void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size) {
     /* Encontrar bloco atual */
     MemoryBlock* block = imm->blocks;
     while (block) {
-        if (block->ptr == ptr) {
+        void* user_ptr = (char*)block->ptr + MEMORY_GUARD_SIZE;
+        if (user_ptr == ptr) {
             break;
         }
         block = block->next;
     }
     
     if (!block) {
-        error_report(ERROR_MEMORY, 0, 0, "Tentativa de realocar ponteiro não rastreado");
+        error_report(ERROR_MEMORY, line, 0, "Tentativa de realocar ponteiro não rastreado");
         return NULL;
     }
     
     size_t old_size = block->size;
     
+    /* Verificar guardas antes de realocar */
+    if (!verify_memory_guards(block->ptr, old_size)) {
+        fprintf(stderr, "ERRO: Corrupção de memória detectada ao realocar %p\n", ptr);
+    }
+    
     /* Verificar limite para novo tamanho */
     if (new_size > old_size) {
         size_t additional = new_size - old_size;
         if (mm->allocated + additional > mm->limit) {
-            error_report(ERROR_MEMORY, 0, 0, "Memória Insuficiente para realocação");
+            error_report(ERROR_MEMORY, line, 0, "Memória Insuficiente para realocação");
             return NULL;
         }
     }
     
-    /* Realocar */
-    void* new_ptr = realloc(ptr, new_size);
-    if (!new_ptr) {
-        error_report(ERROR_MEMORY, 0, 0, "Falha na realocação de memória");
+    /* Alocar novo bloco com guardas */
+    size_t total_size = new_size + (2 * MEMORY_GUARD_SIZE);
+    void* new_raw_ptr = realloc(block->ptr, total_size);
+    if (!new_raw_ptr) {
+        error_report(ERROR_MEMORY, line, 0, "Falha na realocação de memória");
         return NULL;
     }
     
+    /* Configurar novas guardas */
+    add_memory_guards(new_raw_ptr, new_size);
+    void* new_user_ptr = (char*)new_raw_ptr + MEMORY_GUARD_SIZE;
+    
+    /* Se aumentou o tamanho, inicializar nova área */
+    if (new_size > old_size) {
+        poison_memory((char*)new_user_ptr + old_size, new_size - old_size);
+    }
+    
     /* Atualizar bloco */
-    block->ptr = new_ptr;
+    block->ptr = new_raw_ptr;
+    block->size = new_size;
+    block->line_allocated = line;
+    block->file_allocated = file;
+    block->function_allocated = function;
+    block->time_allocated = time(NULL);
     
     /* Atualizar estatísticas */
     mm->allocated = mm->allocated - old_size + new_size;
-    block->size = new_size;
+    
+    if (new_size > old_size) {
+        imm->total_allocated += (new_size - old_size);
+    } else {
+        imm->total_freed += (old_size - new_size);
+    }
     
     if (mm->allocated > mm->peak_usage) {
         mm->peak_usage = mm->allocated;
     }
     
+    /* Calcular fragmentação */
+    calculate_fragmentation(imm);
+    
     /* Verificar avisos */
     memory_check_limit(mm);
     
-    return new_ptr;
+    /* Log da operação */
+    log_memory_operation("REALLOC", new_user_ptr, new_size, file, line);
+    
+    return new_user_ptr;
 }
 
-/* Verificar limite de memória */
+/* Wrapper para realocação normal */
+void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size) {
+    return memory_realloc_debug(mm, ptr, new_size, __FILE__, __LINE__, __func__);
+}
+
+/* Verificar limite de memória com múltiplos níveis */
 int memory_check_limit(MemoryManager* mm) {
     if (!mm) return 0;
     
@@ -211,21 +358,23 @@ int memory_check_limit(MemoryManager* mm) {
     
     if (usage_percent >= 100.0) {
         error_report(ERROR_MEMORY, 0, 0, "Limite de memória excedido (100%)");
-        return 1; /* Erro crítico */
+        return 3; /* Erro crítico */
+    } else if (usage_percent >= 95.0) {
+        fprintf(stderr, "AVISO CRÍTICO: Uso de memória muito alto: %.1f%% (%zu/%zu bytes)\n",
+                usage_percent, mm->allocated, mm->limit);
+        return 2; /* Aviso crítico */
     } else if (usage_percent >= 90.0) {
         fprintf(stderr, "AVISO: Uso de memória alto: %.1f%% (%zu/%zu bytes)\n",
                 usage_percent, mm->allocated, mm->limit);
-        return 2; /* Aviso */
+        return 1; /* Aviso normal */
     }
     
     return 0; /* OK */
 }
 
-/* Gerar relatório de memória */
+/* Gerar relatório de memória básico */
 void memory_report(MemoryManager* mm) {
     if (!mm) return;
-    
-    InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     
     printf("\n=== RELATÓRIO DE MEMÓRIA ===\n");
     printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n", 
@@ -238,8 +387,46 @@ void memory_report(MemoryManager* mm) {
            (double)mm->allocated / mm->limit * 100.0);
     printf("Total de alocações: %d\n", mm->allocation_count);
     printf("Total de desalocações: %d\n", mm->deallocation_count);
+    printf("==============================\n\n");
+}
+
+/* Gerar relatório detalhado de memória */
+void memory_report_detailed(MemoryManager* mm) {
+    if (!mm) return;
+    
+    InternalMemoryManager* imm = (InternalMemoryManager*)mm;
+    
+    printf("\n=== RELATÓRIO DETALHADO DE MEMÓRIA ===\n");
+    printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n", 
+           mm->allocated, (double)mm->allocated / 1024.0);
+    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n", 
+           mm->peak_usage, (double)mm->peak_usage / 1024.0);
+    printf("Limite de memória: %zu bytes (%.2f KB)\n", 
+           mm->limit, (double)mm->limit / 1024.0);
+    printf("Uso atual: %.1f%% do limite\n", 
+           (double)mm->allocated / mm->limit * 100.0);
+    
+    printf("\n--- ESTATÍSTICAS AVANÇADAS ---\n");
+    printf("Total de alocações: %d\n", mm->allocation_count);
+    printf("Total de desalocações: %d\n", mm->deallocation_count);
+    printf("Blocos ativos: %d\n", imm->active_blocks);
+    printf("Total alocado (histórico): %zu bytes (%.2f KB)\n", 
+           imm->total_allocated, (double)imm->total_allocated / 1024.0);
+    printf("Total liberado (histórico): %zu bytes (%.2f KB)\n", 
+           imm->total_freed, (double)imm->total_freed / 1024.0);
+    
+    printf("\n--- FRAGMENTAÇÃO ---\n");
+    const char* frag_levels[] = {"Nenhuma", "Baixa", "Média", "Alta"};
+    printf("Nível de fragmentação: %s (%d)\n", 
+           frag_levels[imm->fragmentation_level], imm->fragmentation_level);
+    
+    if (imm->active_blocks > 0) {
+        printf("Tamanho médio dos blocos: %.2f bytes\n", 
+               (double)mm->allocated / imm->active_blocks);
+    }
     
     /* Mostrar blocos não liberados */
+    printf("\n--- BLOCOS ATIVOS ---\n");
     int leak_count = 0;
     size_t leaked_bytes = 0;
     MemoryBlock* block = imm->blocks;
@@ -247,15 +434,233 @@ void memory_report(MemoryManager* mm) {
     while (block) {
         leak_count++;
         leaked_bytes += block->size;
+        
+        if (DEBUG_MEMORY) {
+            printf("Bloco %d: %zu bytes alocados em %s:%d (%s)\n", 
+                   leak_count, block->size, block->file_allocated, 
+                   block->line_allocated, block->function_allocated);
+        }
+        
         block = block->next;
     }
     
     if (leak_count > 0) {
-        printf("VAZAMENTOS DETECTADOS: %d blocos, %zu bytes\n", 
-               leak_count, leaked_bytes);
+        printf("Total de blocos ativos: %d (%zu bytes)\n", leak_count, leaked_bytes);
     } else {
-        printf("Nenhum vazamento de memória detectado!\n");
+        printf("Nenhum bloco ativo - memória totalmente liberada!\n");
     }
     
-    printf("==============================\n\n");
+    printf("\n--- EFICIÊNCIA ---\n");
+    if (mm->allocation_count > 0) {
+        printf("Taxa de liberação: %.1f%% (%d/%d)\n", 
+               (double)mm->deallocation_count / mm->allocation_count * 100.0,
+               mm->deallocation_count, mm->allocation_count);
+    }
+    
+    printf("Desperdício atual: %zu bytes (%.2f KB)\n", 
+           mm->limit - mm->allocated, (double)(mm->limit - mm->allocated) / 1024.0);
+    
+    printf("=====================================\n\n");
+}
+
+/* Executar teste de estresse de memória */
+int memory_stress_test(MemoryManager* mm) {
+    if (!mm) return 0;
+    
+    printf("=== TESTE DE ESTRESSE DE MEMÓRIA ===\n");
+    
+    const int test_iterations = 1000;
+    const size_t test_sizes[] = {16, 32, 64, 128, 256, 512, 1024, 2048};
+    const int num_sizes = sizeof(test_sizes) / sizeof(test_sizes[0]);
+    
+    void* pointers[test_iterations];
+    int allocated_count = 0;
+    
+    /* Teste de alocação */
+    for (int i = 0; i < test_iterations; i++) {
+        size_t size = test_sizes[i % num_sizes];
+        pointers[i] = memory_alloc(mm, size);
+        
+        if (pointers[i]) {
+            allocated_count++;
+        } else {
+            printf("Falha na alocação %d (tamanho %zu)\n", i, size);
+            break;
+        }
+        
+        /* Verificar limite a cada 100 alocações */
+        if (i % 100 == 0) {
+            int warning_level = memory_check_limit(mm);
+            if (warning_level >= 2) {
+                printf("Limite de memória atingido após %d alocações\n", i);
+                break;
+            }
+        }
+    }
+    
+    printf("Alocações bem-sucedidas: %d/%d\n", allocated_count, test_iterations);
+    
+    /* Teste de liberação */
+    for (int i = 0; i < allocated_count; i++) {
+        if (pointers[i]) {
+            memory_free(mm, pointers[i]);
+            pointers[i] = NULL;
+        }
+    }
+    
+    /* Verificar vazamentos */
+    InternalMemoryManager* imm = (InternalMemoryManager*)mm;
+    if (imm->active_blocks == 0) {
+        printf("Teste de estresse PASSOU - nenhum vazamento detectado!\n");
+        return 1;
+    } else {
+        printf("Teste de estresse FALHOU - %d blocos não foram liberados\n", imm->active_blocks);
+        return 0;
+    }
+}
+
+/* Validar integridade da memória */
+int memory_validate_integrity(MemoryManager* mm) {
+    if (!mm) return 0;
+    
+    InternalMemoryManager* imm = (InternalMemoryManager*)mm;
+    int errors = 0;
+    
+    printf("=== VALIDAÇÃO DE INTEGRIDADE ===\n");
+    
+    /* Verificar todos os blocos */
+    MemoryBlock* block = imm->blocks;
+    int block_count = 0;
+    
+    while (block) {
+        block_count++;
+        
+        /* Verificar guardas de memória */
+        if (!verify_memory_guards(block->ptr, block->size)) {
+            printf("ERRO: Corrupção detectada no bloco %d (%p)\n", block_count, block->ptr);
+            errors++;
+        }
+        
+        /* Verificar ponteiro válido */
+        if (!block->ptr) {
+            printf("ERRO: Ponteiro nulo no bloco %d\n", block_count);
+            errors++;
+        }
+        
+        /* Verificar tamanho */
+        if (block->size == 0) {
+            printf("ERRO: Tamanho zero no bloco %d\n", block_count);
+            errors++;
+        }
+        
+        block = block->next;
+    }
+    
+    /* Verificar consistência das estatísticas */
+    if (block_count != imm->active_blocks) {
+        printf("ERRO: Inconsistência na contagem de blocos (%d vs %d)\n", 
+               block_count, imm->active_blocks);
+        errors++;
+    }
+    
+    if (errors == 0) {
+        printf("Integridade da memória VALIDADA - nenhum erro encontrado!\n");
+    } else {
+        printf("Validação FALHOU - %d erros encontrados\n", errors);
+    }
+    
+    printf("================================\n\n");
+    return errors == 0;
+}
+
+/* Funções auxiliares */
+static void poison_memory(void* ptr, size_t size) {
+    if (DEBUG_MEMORY) {
+        uint32_t* int_ptr = (uint32_t*)ptr;
+        size_t int_count = size / sizeof(uint32_t);
+        for (size_t i = 0; i < int_count; i++) {
+            int_ptr[i] = MEMORY_POISON_VALUE;
+        }
+    }
+}
+
+static int check_memory_corruption(void* ptr, size_t size) {
+    if (!DEBUG_MEMORY) return 0;
+    
+    uint32_t* int_ptr = (uint32_t*)ptr;
+    size_t int_count = size / sizeof(uint32_t);
+    
+    for (size_t i = 0; i < int_count; i++) {
+        if (int_ptr[i] != MEMORY_POISON_VALUE) {
+            return 0; /* Memória foi modificada, não é corrupção */
+        }
+    }
+    
+    return 0; /* Nenhuma corrupção detectada */
+}
+
+static void add_memory_guards(void* ptr, size_t size) {
+    if (!DEBUG_MEMORY) return;
+    
+    uint32_t guard_pattern = 0xDEADC0DE;
+    
+    /* Guarda no início */
+    uint32_t* start_guard = (uint32_t*)ptr;
+    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+        start_guard[i] = guard_pattern;
+    }
+    
+    /* Guarda no final */
+    uint32_t* end_guard = (uint32_t*)((char*)ptr + MEMORY_GUARD_SIZE + size);
+    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+        end_guard[i] = guard_pattern;
+    }
+}
+
+static int verify_memory_guards(void* ptr, size_t size) {
+    if (!DEBUG_MEMORY) return 1;
+    
+    uint32_t guard_pattern = 0xDEADC0DE;
+    
+    /* Verificar guarda no início */
+    uint32_t* start_guard = (uint32_t*)ptr;
+    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+        if (start_guard[i] != guard_pattern) {
+            return 0;
+        }
+    }
+    
+    /* Verificar guarda no final */
+    uint32_t* end_guard = (uint32_t*)((char*)ptr + MEMORY_GUARD_SIZE + size);
+    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+        if (end_guard[i] != guard_pattern) {
+            return 0;
+        }
+    }
+    
+    return 1;
+}
+
+static void log_memory_operation(const char* operation, void* ptr, size_t size, const char* file, int line) {
+    if (DEBUG_MEMORY) {
+        printf("MEMORY_LOG: %s %p (%zu bytes) em %s:%d\n", operation, ptr, size, file, line);
+    }
+}
+
+static void calculate_fragmentation(InternalMemoryManager* imm) {
+    if (imm->active_blocks == 0) {
+        imm->fragmentation_level = 0;
+        return;
+    }
+    
+    /* Cálculo simples de fragmentação baseado no número de blocos */
+    if (imm->active_blocks > 100) {
+        imm->fragmentation_level = 3; /* Alta fragmentação */
+    } else if (imm->active_blocks > 50) {
+        imm->fragmentation_level = 2; /* Média fragmentação */
+    } else if (imm->active_blocks > 20) {
+        imm->fragmentation_level = 1; /* Baixa fragmentação */
+    } else {
+        imm->fragmentation_level = 0; /* Sem fragmentação */
+    }
 } 

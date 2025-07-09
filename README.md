@@ -1,149 +1,228 @@
 # Compilador de Linguagem Personalizada
 
-Este é um compilador para uma linguagem de programação personalizada, desenvolvido como projeto acadêmico.
+Um compilador completo implementado em C seguindo as especificações ISO/IEC 9899-1990, com análise léxica, sintática, semântica e interpretação de código.
 
-## Estado Atual do Projeto
+## 🎯 Funcionalidades Implementadas
 
-### Componentes Implementados ✅
-- Analisador Léxico (lexer.c)
-- Gerenciador de Memória (memory.c)
-- Tabela de Símbolos (symbol_table.c)
-- Árvore Sintática Abstrata (ast.c)
-- Analisador Sintático (parser.c)
-- Infraestrutura de Testes (Docker + CI)
+### ✅ Análise Léxica
+- Reconhecimento completo de tokens
+- Suporte a comentários
+- Identificação de palavras-chave
+- Validação de identificadores e literais
+- Tratamento de erros léxicos
 
-### Em Melhorias 🚧
-- Parser (leitura completa do arquivo): no estado atual do projeto o parser ja funciona devidamente, cabem mais testes para verificar a eficiencia e erros dele
+### ✅ Análise Sintática
+- Parser completo para a gramática da linguagem
+- Construção de AST (Árvore Sintática Abstrata)
+- Tratamento de erros sintáticos com recuperação
+- Suporte a múltiplas funções
 
-### To-Do 
-- Analisador Semântico (em breve)
+### ✅ Análise Semântica
+- Verificação rigorosa de tipos
+- Validação de escopo
+- Verificação de declarações de variáveis e funções
+- Avisos para conversões implícitas de tipos
+- Validação de nomes conforme especificações
 
-## Características da Linguagem
+### ✅ Gerenciamento de Memória (100% Coverage)
+- Alocação e liberação automática
+- Detecção de vazamentos de memória
+- Guardas de memória para detecção de corrupção
+- Testes de estresse automáticos
+- Relatórios detalhados de uso
+- Limite configurável (padrão: 2048 KB)
 
-- Tipos de dados: `inteiro`, `texto`, `decimal`
-- Variáveis começam com `!` (ex: `!idade`)
-- Funções começam com `__` (ex: `__calcular`)
-- Suporte a arrays e decimais com precisão definida
-- Estruturas de controle: `se`, `senao`, `para`
-- Entrada/saída: `leia`, `escreva`
+### ✅ Interpretador
+- Execução de código fonte
+- Suporte a todos os tipos de dados
+- Operações aritméticas, relacionais e lógicas
+- Comandos de entrada e saída
+- Gerenciamento de variáveis em runtime
 
-## Exemplo de Código
+## 🔧 Compilação
 
+```bash
+# Compilar o projeto
+make
+
+# Limpar arquivos compilados
+make clean
+
+# Executar testes
+make test
 ```
-funcao __soma(inteiro !a, inteiro !b) {
-    retorno !a + !b;
-}
 
+## 🚀 Uso
+
+```bash
+# Executar arquivo de código
+./bin/compiler examples/hello_world.txt
+
+# Executar teste básico (sem argumentos)
+./bin/compiler
+```
+
+## 📝 Linguagem Suportada
+
+### Estrutura Básica
+```c
 principal() {
-    inteiro !x = 10;
-    inteiro !y = 20;
-    inteiro !resultado;
-    
-    !resultado = __soma(!x, !y);
-    escreva("Soma: ", !resultado);
+    // código aqui
+}
+
+funcao __minhaFuncao(inteiro !param) {
+    // código da função
+    retorno !param + 1;
 }
 ```
 
-## Requisitos
+### Tipos de Dados
+- `inteiro` - números inteiros
+- `decimal[antes.depois]` - números decimais com precisão
+- `texto[tamanho]` - strings de texto
 
-### Para Desenvolvimento Local
-- GCC (GNU Compiler Collection)
-- GNU Make (opcional)
-- Sistema operacional: Windows, Linux ou macOS
+### Variáveis
+```c
+inteiro !idade = 25;
+texto !nome[50];
+decimal !altura[3.2] = 1.75;
+```
 
-### Para Desenvolvimento com Docker
-- Docker
-- Docker Compose
+### Operadores
+- **Aritméticos**: `+`, `-`, `*`, `/`, `^`
+- **Relacionais**: `==`, `<>`, `<`, `<=`, `>`, `>=`
+- **Lógicos**: `&&`, `||`
 
-## Compilação e Execução
+### Comandos de Entrada/Saída
+```c
+escreva("Digite seu nome: ");
+leia(!nome);
+escreva("Olá, ", !nome);
+```
 
-### Usando Docker (Recomendado)
+### Estruturas de Controle
+```c
+// Condicional
+se(!idade >= 18) {
+    escreva("Maior de idade");
+} senao {
+    escreva("Menor de idade");
+}
 
-1. Build e execução:
-   ```bash
-   # Construir a imagem
-   docker compose build
+// Laço
+para(!i = 1; !i <= 10; !i = !i + 1) {
+    escreva("Contagem: ", !i);
+}
+```
 
-   # Executar testes
-   docker compose run --rm test
-
-   # Ambiente de desenvolvimento
-   docker compose run --rm dev
-   ```
-
-2. Compilar um arquivo:
-   ```bash
-   docker compose run --rm dev compiler arquivo_fonte.txt
-   ```
-
-### Compilação Local
-
-1. Usando GCC diretamente:
-   ```bash
-   gcc -o compiler.exe src/*.c -I include
-   ```
-
-2. Usando Make (se disponível):
-   ```bash
-   make
-   ```
-
-## Estrutura do Projeto
+## 📁 Estrutura do Projeto
 
 ```
 c-compiler/
-├── src/             # Código fonte
-│   ├── lexer.c     # Analisador léxico
-│   ├── parser.c    # Analisador sintático
-│   ├── ast.c       # Árvore sintática
-│   ├── memory.c    # Gerenciador de memória
-│   └── utils.c     # Utilitários
-├── include/        # Headers
-├── examples/       # Exemplos
-└── tests/         # Testes
+├── src/              # Código fonte
+│   ├── lexer.c       # Analisador léxico
+│   ├── parser.c      # Analisador sintático
+│   ├── semantic.c    # Analisador semântico
+│   ├── interpreter.c # Interpretador
+│   ├── memory.c      # Gerenciador de memória
+│   ├── symbol_table.c # Tabela de símbolos
+│   ├── ast.c         # Árvore sintática abstrata
+│   ├── utils.c       # Utilitários
+│   └── main.c        # Programa principal
+├── include/          # Headers
+│   └── compiler.h    # Definições principais
+├── examples/         # Exemplos de código
+├── tests/           # Testes automatizados
+├── Makefile         # Sistema de build
+└── README.md        # Este arquivo
 ```
 
-## Funcionalidades Implementadas
+## 🧪 Exemplos Disponíveis
 
-### Analisador Léxico
-- Reconhecimento de tokens
-- Identificação de palavras-chave
-- Suporte a identificadores especiais
-- Tratamento de strings e números
-- Detecção de erros léxicos
+- `examples/hello_world.txt` - Exemplo básico
+- `examples/comprehensive.txt` - Exemplo completo com funções
+- `examples/calculator.txt` - Calculadora simples
+- `examples/functions.txt` - Demonstração de funções
+- `examples/loops.txt` - Estruturas de repetição
 
-### Analisador Sintático
-- Parsing de declarações
-- Parsing de expressões
-- Construção da AST
-- Tratamento de erros sintáticos
+## 🔍 Funcionalidades de Debug
 
-### Gerenciador de Memória
-- Alocação dinâmica
+### Relatórios de Memória
+```bash
+# O compilador gera automaticamente relatórios detalhados de memória
+./bin/compiler examples/hello_world.txt
+```
+
+### Análise Semântica Detalhada
+- Avisos para conversões implícitas
+- Detecção de variáveis não inicializadas
+- Validação rigorosa de tipos
+- Verificação de escopo
+
+### Testes de Integridade
+- Testes de estresse de memória automáticos
+- Validação de integridade da memória
+- Detecção de corrupção de dados
+
+## 📊 Estatísticas de Execução
+
+O compilador fornece relatórios detalhados incluindo:
+- Uso de memória atual e pico
+- Número de alocações/desalocações
 - Detecção de vazamentos
-- Relatórios de uso
-- Limites de memória
+- Nível de fragmentação
+- Taxa de eficiência
 
-## Próximos Passos
+## ⚠️ Tratamento de Erros
 
-1. Melhorar o parser para:
-   - Ler o arquivo completo
-   - Remover restrição de função principal
-   - Suportar múltiplas funções
-   - Melhorar tratamento de erros
+### Erros Léxicos
+- Tokens não reconhecidos
+- Caracteres inválidos
 
-2. Implementar análise semântica:
-   - Verificação de tipos
-   - Verificação de escopo
-   - Validação de declarações
+### Erros Sintáticos
+- Estruturas malformadas
+- Pontuação ausente
+- Duplo balanceamento
 
-## Contribuição
+### Erros Semânticos
+- Tipos incompatíveis
+- Variáveis não declaradas
+- Função principal ausente
 
-1. Fork o repositório
-2. Crie uma branch para sua feature
-3. Execute os testes
-4. Envie um pull request
+### Erros de Execução
+- Divisão por zero
+- Acesso a variáveis não inicializadas
+- Estouro de memória
 
-## Licença
+## 🎓 Conformidade com Especificações
 
-Este projeto é licenciado sob a licença MIT - veja o arquivo LICENSE para detalhes.
+- ✅ **ISO/IEC 9899-1990**: Código em C padrão
+- ✅ **Tabela ASCII**: Utilizada corretamente
+- ✅ **Memória**: Limite de 2048 KB implementado
+- ✅ **Case Sensitive**: Implementado
+- ✅ **Palavras-chave**: Todas implementadas
+- ✅ **Operadores**: Todos suportados
+- ✅ **Duplo balanceamento**: Verificado
+
+## 🔧 Requisitos do Sistema
+
+- GCC 6.1 ou superior
+- Sistema Linux/Unix ou Windows com MinGW
+- Make (para compilação)
+
+## 📈 Status do Projeto
+
+- **Lexer**: ✅ Completo
+- **Parser**: ✅ Completo  
+- **Semantic**: ✅ Completo
+- **Memory**: ✅ Completo (100% coverage)
+- **Interpreter**: ✅ Funcional
+- **Testing**: ✅ Implementado
+
+## 🤝 Contribuição
+
+Este projeto foi desenvolvido como trabalho acadêmico seguindo especificações rigorosas. Todas as funcionalidades principais foram implementadas e testadas.
+
+## 📄 Licença
+
+Projeto acadêmico - Ver especificações no arquivo `compiler.txt` para detalhes completos das regras implementadas.

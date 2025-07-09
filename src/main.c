@@ -92,6 +92,75 @@ void test_parser(const char* source_code) {
     printf("=== TESTE CONCLUÍDO ===\n\n");
 }
 
+/* Função para testar o interpretador */
+void test_interpreter(const char* source_code) {
+    printf("=== TESTANDO INTERPRETADOR ===\n");
+    printf("Código fonte:\n%s\n", source_code);
+    
+    /* Criar lexer */
+    Lexer* lexer = lexer_create(source_code);
+    if (!lexer) {
+        fprintf(stderr, "Erro ao criar lexer\n");
+        return;
+    }
+    
+    /* Criar parser */
+    Parser* parser = parser_create(lexer);
+    if (!parser) {
+        fprintf(stderr, "Erro ao criar parser\n");
+        lexer_destroy(lexer);
+        return;
+    }
+    
+    /* Analisar código */
+    ASTNode* ast = parser_parse(parser);
+    
+    if (!ast) {
+        printf("Erro na análise sintática - não é possível executar\n");
+        parser_destroy(parser);
+        lexer_destroy(lexer);
+        return;
+    }
+    
+    /* Análise semântica */
+    int semantic_ok = semantic_analyze(ast, parser->symbol_table);
+    
+    if (!semantic_ok) {
+        printf("Erro na análise semântica - não é possível executar\n");
+        ast_destroy(ast);
+        parser_destroy(parser);
+        lexer_destroy(lexer);
+        return;
+    }
+    
+    /* Criar e executar interpretador */
+    Interpreter* interpreter = interpreter_create(ast, parser->symbol_table);
+    if (!interpreter) {
+        printf("Erro ao criar interpretador\n");
+        ast_destroy(ast);
+        parser_destroy(parser);
+        lexer_destroy(lexer);
+        return;
+    }
+    
+    /* Executar código */
+    int execution_ok = interpreter_execute(interpreter);
+    
+    if (execution_ok) {
+        printf("Código executado com sucesso!\n");
+    } else {
+        printf("Erro durante a execução\n");
+    }
+    
+    /* Limpar */
+    interpreter_destroy(interpreter);
+    ast_destroy(ast);
+    parser_destroy(parser);
+    lexer_destroy(lexer);
+    
+    printf("=== TESTE DO INTERPRETADOR CONCLUÍDO ===\n\n");
+}
+
 /* Função para ler arquivo */
 char* read_file(const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -140,6 +209,18 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
+    /* Executar teste de estresse da memória */
+    printf("=== TESTE DE ESTRESSE DA MEMÓRIA ===\n");
+    int memory_test_ok = memory_stress_test(g_memory_manager);
+    if (memory_test_ok) {
+        printf("Teste de memória PASSOU!\n");
+    } else {
+        printf("Teste de memória FALHOU!\n");
+    }
+    
+    /* Validar integridade da memória */
+    memory_validate_integrity(g_memory_manager);
+    
     /* Verificar argumentos */
     if (argc < 2) {
         printf("Uso: %s <arquivo_fonte>\n", argv[0]);
@@ -161,6 +242,7 @@ int main(int argc, char* argv[]) {
         
         test_lexer(test_code);
         test_parser(test_code);
+        test_interpreter(test_code);
         
         memory_manager_destroy(g_memory_manager);
         return 0;
@@ -182,6 +264,9 @@ int main(int argc, char* argv[]) {
     /* Testar analisador sintático e semântico */
     test_parser(source_code);
     
+    /* Testar interpretador */
+    test_interpreter(source_code);
+    
     /* Verificar se houve erros */
     if (g_error_count > 0) {
         printf("COMPILAÇÃO FALHOU: %d erro(s) encontrado(s)\n", g_error_count);
@@ -190,7 +275,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     
-    printf("COMPILAÇÃO CONCLUÍDA COM SUCESSO!\n");
+    printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
     
     /* Limpar e finalizar */
     free(source_code);
