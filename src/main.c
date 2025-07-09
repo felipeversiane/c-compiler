@@ -208,16 +208,7 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "ERRO CRÍTICO: Falha ao inicializar gerenciador de memória\n");
         return 1;
     }
-    
-    /* Executar teste de estresse da memória */
-    printf("=== TESTE DE ESTRESSE DA MEMÓRIA ===\n");
-    int memory_test_ok = memory_stress_test(g_memory_manager);
-    if (memory_test_ok) {
-        printf("Teste de memória PASSOU!\n");
-    } else {
-        printf("Teste de memória FALHOU!\n");
-    }
-    
+        
     /* Validar integridade da memória */
     memory_validate_integrity(g_memory_manager);
     

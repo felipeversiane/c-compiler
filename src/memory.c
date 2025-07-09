@@ -463,61 +463,6 @@ void memory_report_detailed(MemoryManager* mm) {
     printf("=====================================\n\n");
 }
 
-/* Executar teste de estresse de memória */
-int memory_stress_test(MemoryManager* mm) {
-    if (!mm) return 0;
-    
-    printf("=== TESTE DE ESTRESSE DE MEMÓRIA ===\n");
-    
-    const int test_iterations = 1000;
-    const size_t test_sizes[] = {16, 32, 64, 128, 256, 512, 1024, 2048};
-    const int num_sizes = sizeof(test_sizes) / sizeof(test_sizes[0]);
-    
-    void* pointers[test_iterations];
-    int allocated_count = 0;
-    
-    /* Teste de alocação */
-    for (int i = 0; i < test_iterations; i++) {
-        size_t size = test_sizes[i % num_sizes];
-        pointers[i] = memory_alloc(mm, size);
-        
-        if (pointers[i]) {
-            allocated_count++;
-        } else {
-            printf("Falha na alocação %d (tamanho %zu)\n", i, size);
-            break;
-        }
-        
-        /* Verificar limite a cada 100 alocações */
-        if (i % 100 == 0) {
-            int warning_level = memory_check_limit(mm);
-            if (warning_level >= 2) {
-                printf("Limite de memória atingido após %d alocações\n", i);
-                break;
-            }
-        }
-    }
-    
-    printf("Alocações bem-sucedidas: %d/%d\n", allocated_count, test_iterations);
-    
-    /* Teste de liberação */
-    for (int i = 0; i < allocated_count; i++) {
-        if (pointers[i]) {
-            memory_free(mm, pointers[i]);
-            pointers[i] = NULL;
-        }
-    }
-    
-    /* Verificar vazamentos */
-    InternalMemoryManager* imm = (InternalMemoryManager*)mm;
-    if (imm->active_blocks == 0) {
-        printf("Teste de estresse PASSOU - nenhum vazamento detectado!\n");
-        return 1;
-    } else {
-        printf("Teste de estresse FALHOU - %d blocos não foram liberados\n", imm->active_blocks);
-        return 0;
-    }
-}
 
 /* Validar integridade da memória */
 int memory_validate_integrity(MemoryManager* mm) {

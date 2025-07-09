@@ -90,8 +90,10 @@ static int check_type_strict_compatibility(DataType type1, DataType type2) {
 
 /* Validar nome de função */
 static int validate_function_name(const char* name) {
-    if (strcmp(name, "principal") == 0) {
-        return 1; /* Nome principal é válido */
+    if (strcmp(name, "principal") == 0 ||
+        strcmp(name, "leia") == 0 ||
+        strcmp(name, "escreva") == 0) {
+        return 1; /* Nomes de funções internas são válidos */
     }
     
     /* Verificar se começa com __ */
@@ -309,18 +311,26 @@ static DataType analyze_expression(SemanticContext* ctx, ASTNode* node) {
         case AST_FUNCTION_CALL: {
             const char* func_name = node->data.literal.string_val;
             
+            /* Funções internas leia() e escreva() não precisam ser declaradas */
+            if (strcmp(func_name, "leia") == 0 || strcmp(func_name, "escreva") == 0) {
+                for (int i = 0; i < node->child_count; i++) {
+                    analyze_expression(ctx, node->children[i]);
+                }
+                return TYPE_VOID;
+            }
+
             /* Validar nome da função */
             if (!validate_function_name(func_name)) {
                 semantic_error(ctx, node->token, "Nome de função inválido - deve ser 'principal' ou começar com '__'");
                 return TYPE_VOID;
             }
-            
+
             Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
             if (!func) {
                 semantic_error(ctx, node->token, "Função não declarada");
                 return TYPE_VOID;
             }
-            
+
             if (!func->is_function) {
                 semantic_error(ctx, node->token, "Identificador não é uma função");
                 return TYPE_VOID;
@@ -379,7 +389,15 @@ static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
     if (!validate_type_dimensions(ctx, node->data.var_decl.var_type, node->data.var_decl.type_info, node->token)) {
         return;
     }
-    
+
+    /* Registrar variável na tabela de símbolos */
+    Symbol* symbol = symbol_table_insert(ctx->symbol_table, var_name, node->data.var_decl.var_type);
+    if (!symbol) {
+        semantic_error(ctx, node->token, "Variável já declarada neste escopo");
+        return;
+    }
+    symbol->type_info = node->data.var_decl.type_info;
+
     /* Verificar inicialização */
     if (node->child_count > 0) {
         DataType init_type = analyze_expression(ctx, node->children[0]);
@@ -396,6 +414,8 @@ static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node) {
         if (init_type != node->data.var_decl.var_type) {
             semantic_warning(ctx, node->token, "Conversão implícita de tipo na inicialização");
         }
+
+        symbol->is_initialized = 1;
     }
 }
 
@@ -626,8 +646,7 @@ static void analyze_block(SemanticContext* ctx, ASTNode* node) {
         analyze_statement(ctx, node->children[i]);
     }
     
-    /* Sair do escopo */
-    symbol_table_exit_scope(ctx->symbol_table);
+    /* Sair do escopo - manter símbolos para execução */
 }
 
 /* Analisar função */
@@ -640,10 +659,12 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     
-    /* Verificar se função já existe */
+    /* Recuperar símbolo já registrado na primeira passada */
     Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
-    if (func && func->scope_level == ctx->symbol_table->scope_level) {
-        semantic_error(ctx, node->token, "Função já declarada");
+
+    /* Se ainda não existir, houve falha na etapa de declaração */
+    if (!func) {
+        semantic_error(ctx, node->token, "Erro interno: função não declarada");
         return;
     }
     
@@ -657,23 +678,7 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     
-    /* Adicionar função à tabela de símbolos */
-    func = symbol_table_insert(ctx->symbol_table, func_name, node->data.function.return_type);
-    if (!func) {
-        semantic_error(ctx, node->token, "Erro ao declarar função");
-        return;
-    }
-    
-    func->is_function = 1;
-    func->param_count = node->data.function.param_count;
-    
-    /* Copiar informações dos parâmetros */
-    for (int i = 0; i < node->data.function.param_count; i++) {
-        func->param_types[i] = node->data.function.param_types[i];
-        func->param_type_infos[i] = node->data.function.param_type_infos[i];
-        strncpy(func->param_names[i], node->data.function.param_names[i], MAX_IDENTIFIER_LENGTH - 1);
-        func->param_names[i][MAX_IDENTIFIER_LENGTH - 1] = '\0';
-    }
+    /* Parâmetros já foram copiados na primeira passada */
     
     /* Entrar em escopo da função */
     symbol_table_enter_scope(ctx->symbol_table);
@@ -705,8 +710,7 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
     
     ctx->current_function = NULL;
     
-    /* Sair do escopo da função */
-    symbol_table_exit_scope(ctx->symbol_table);
+    /* Sair do escopo da função (símbolos permanecem para execução) */
 }
 
 /* Analisar programa */

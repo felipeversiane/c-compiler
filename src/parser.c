@@ -321,8 +321,7 @@ static ASTNode* parse_block(Parser* parser) {
         ast_add_child(block, stmt);
     }
     
-    /* Sair do escopo */
-    symbol_table_exit_scope(parser->symbol_table);
+    /* Sair do escopo (mantemos símbolos para o interpretador) */
     parser->current_scope--;
     
     return block;
@@ -400,10 +399,16 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         return NULL;
     }
     
-    /* SALVAR O NOME DA VARIÁVEL ANTES DE CONSUMIR O TOKEN */
+    /* Salvar token do identificador para uso posterior */
+    Token name_token = parser->lexer->current_token;
+
+    /* Copiar o nome antes de consumir o token */
     char var_name[MAX_IDENTIFIER_LENGTH];
-    strncpy(var_name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
+    strncpy(var_name, name_token.value, MAX_IDENTIFIER_LENGTH - 1);
     var_name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
+
+    /* Atribuir o token do identificador ao nó da AST */
+    var_decl->token = name_token;
     
     /* Agora consumir o token da variável */
     consume_token(parser, TOKEN_VARIAVEL);
@@ -416,24 +421,23 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         Token dim_token = parser->lexer->current_token;
         
         if (dim_token.type == TOKEN_NUMERO_INT) {
-            var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
+            if (var_type == TYPE_DECIMAL) {
+                var_decl->data.var_decl.type_info.precision = string_to_int(dim_token.value);
+            } else {
+                var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
+            }
             consume_token(parser, TOKEN_NUMERO_INT);
         } else if (dim_token.type == TOKEN_NUMERO_DEC) {
-            /* Para decimal, aceitar número decimal como dimensão */
             if (var_type == TYPE_DECIMAL) {
-                /* Parse the decimal number - use integer part as size */
                 double decimal_val = string_to_double(dim_token.value);
-                var_decl->data.var_decl.type_info.size = (int)decimal_val;
-                
-                /* Extract decimal part for scale if present */
+                var_decl->data.var_decl.type_info.precision = (int)decimal_val;
+
                 char* dot_pos = strchr(dim_token.value, '.');
                 if (dot_pos) {
                     char* decimal_part = dot_pos + 1;
-                    /* Count decimal places or use the decimal part as scale */
                     var_decl->data.var_decl.type_info.scale = strlen(decimal_part);
                 }
             } else {
-                /* For non-decimal types, just use integer part */
                 double decimal_val = string_to_double(dim_token.value);
                 var_decl->data.var_decl.type_info.size = (int)decimal_val;
             }
@@ -859,9 +863,16 @@ static ASTNode* parse_return_statement(Parser* parser) {
 static ASTNode* parse_io_statement(Parser* parser) {
     ASTNode* io_stmt = create_node(parser, AST_FUNCTION_CALL);
     if (!io_stmt) return NULL;
-    
+
     /* Tipo de operação */
     TokenType op_type = parser->lexer->current_token.type;
+
+    if (op_type == TOKEN_LEIA) {
+        strncpy(io_stmt->data.literal.string_val, "leia", MAX_STRING_LENGTH - 1);
+    } else {
+        strncpy(io_stmt->data.literal.string_val, "escreva", MAX_STRING_LENGTH - 1);
+    }
+
     consume_token(parser, op_type);
     
     /* Parâmetros */
