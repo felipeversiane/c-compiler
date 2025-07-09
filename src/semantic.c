@@ -640,10 +640,10 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
         return;
     }
     
-    /* Verificar se função já existe */
+    /* Buscar função já declarada na tabela de símbolos (não inserir novamente) */
     Symbol* func = symbol_table_lookup(ctx->symbol_table, func_name);
-    if (func && func->scope_level == ctx->symbol_table->scope_level) {
-        semantic_error(ctx, node->token, "Função já declarada");
+    if (!func) {
+        semantic_error(ctx, node->token, "Erro ao declarar função");
         return;
     }
     
@@ -654,13 +654,6 @@ static void analyze_function(SemanticContext* ctx, ASTNode* node) {
     
     /* Validar parâmetros */
     if (!validate_function_parameters(ctx, node)) {
-        return;
-    }
-    
-    /* Adicionar função à tabela de símbolos */
-    func = symbol_table_insert(ctx->symbol_table, func_name, node->data.function.return_type);
-    if (!func) {
-        semantic_error(ctx, node->token, "Erro ao declarar função");
         return;
     }
     
@@ -795,4 +788,4 @@ int semantic_analyze(ASTNode* ast, SymbolTable* st) {
     destroy_context(ctx);
     
     return success;
-} 
+}
