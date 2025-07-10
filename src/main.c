@@ -66,24 +66,24 @@ void test_parser(const char* source_code) {
     printf("=== ESTATÍSTICAS SINTÁTICAS ===\n");
     printf("Erros léxicos: %d\n", lexer->error_count);
     printf("Erros sintáticos: %d\n", parser->error_count);
-    
-    if (ast) {
+
+    if (lexer->error_count > 0 || parser->error_count > 0 || !ast) {
+        printf("Nenhuma AST gerada devido a erros\n");
+    } else {
         /* Imprimir AST */
         ast_print(ast, 0);
-        
+
         /* Análise semântica */
         printf("\n=== TESTANDO ANALISADOR SEMÂNTICO ===\n");
         int semantic_ok = semantic_analyze(ast, parser->symbol_table);
-        
+
         if (semantic_ok) {
             printf("Análise semântica concluída com sucesso!\n");
         } else {
             printf("Erros semânticos encontrados.\n");
         }
-        
+
         ast_destroy(ast);
-    } else {
-        printf("Nenhuma AST gerada devido a erros\n");
     }
     
     /* Limpar */
@@ -114,17 +114,18 @@ void test_interpreter(const char* source_code) {
     
     /* Analisar código */
     ASTNode* ast = parser_parse(parser);
-    
-    if (!ast) {
+
+    if (lexer->error_count > 0 || parser->error_count > 0 || !ast) {
         printf("Erro na análise sintática - não é possível executar\n");
         parser_destroy(parser);
         lexer_destroy(lexer);
+        if (ast) ast_destroy(ast);
         return;
     }
-    
+
     /* Análise semântica */
     int semantic_ok = semantic_analyze(ast, parser->symbol_table);
-    
+
     if (!semantic_ok) {
         printf("Erro na análise semântica - não é possível executar\n");
         ast_destroy(ast);
