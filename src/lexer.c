@@ -207,7 +207,19 @@ static Token read_identifier(Lexer* lexer) {
             token.type = lexer_get_keyword_type(buffer);
         } else {
             token.type = TOKEN_ERROR;
-            snprintf(token.value, MAX_TOKEN_LENGTH, "Identificador deve começar com ! para variáveis ou __ para funções");
+            if (buffer[0] == '!' || (buffer[0] == '_' && buffer[1] == '_')) {
+                snprintf(token.value, MAX_TOKEN_LENGTH,
+                         "Identificador malformado: '%s'",
+                         buffer);
+            } else if (isalpha((unsigned char)buffer[0])) {
+                snprintf(token.value, MAX_TOKEN_LENGTH,
+                         "Identificador deve começar com ! para variáveis ou __ para funções: '%s'",
+                         buffer);
+            } else {
+                snprintf(token.value, MAX_TOKEN_LENGTH,
+                         "Palavra-chave inválida ou identificador desconhecido: '%s'",
+                         buffer);
+            }
             lexer->error_count++;
         }
     }
