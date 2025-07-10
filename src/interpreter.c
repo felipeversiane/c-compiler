@@ -12,13 +12,21 @@ typedef struct RuntimeValue {
     int is_initialized;
 } RuntimeValue;
 
+/* Variável em tempo de execução */
+typedef struct RuntimeVariable {
+    char name[MAX_IDENTIFIER_LENGTH];
+    RuntimeValue value;
+    int scope_level;
+} RuntimeVariable;
+
 /* Estrutura para contexto de execução */
 typedef struct ExecutionContext {
     SymbolTable* symbol_table;
     MemoryManager* memory_manager;
-    RuntimeValue* variables;
+    RuntimeVariable* variables;
     int variable_count;
     int max_variables;
+    int current_scope;
     int return_flag;
     RuntimeValue return_value;
     int break_flag;
@@ -30,8 +38,11 @@ typedef struct ExecutionContext {
 /* Protótipos das funções */
 static ExecutionContext* create_execution_context(SymbolTable* st, MemoryManager* mm);
 static void destroy_execution_context(ExecutionContext* ctx);
-static RuntimeValue* get_variable(ExecutionContext* ctx, const char* name);
+static RuntimeVariable* get_variable(ExecutionContext* ctx, const char* name);
 static void set_variable(ExecutionContext* ctx, const char* name, RuntimeValue value);
+static void declare_variable(ExecutionContext* ctx, const char* name, RuntimeValue value);
+static void enter_scope(ExecutionContext* ctx);
+static void exit_scope(ExecutionContext* ctx);
 static RuntimeValue execute_expression(ExecutionContext* ctx, ASTNode* node);
 static void execute_statement(ExecutionContext* ctx, ASTNode* node);
 static void execute_block(ExecutionContext* ctx, ASTNode* node);
@@ -58,13 +69,14 @@ static ExecutionContext* create_execution_context(SymbolTable* st, MemoryManager
     ctx->memory_manager = mm;
     ctx->variable_count = 0;
     ctx->max_variables = 1024;
+    ctx->current_scope = 0;
     ctx->return_flag = 0;
     ctx->break_flag = 0;
     ctx->continue_flag = 0;
     ctx->error_flag = 0;
     ctx->error_message[0] = '\0';
     
-    ctx->variables = (RuntimeValue*)memory_alloc(mm, sizeof(RuntimeValue) * ctx->max_variables);
+    ctx->variables = (RuntimeVariable*)memory_alloc(mm, sizeof(RuntimeVariable) * ctx->max_variables);
     if (!ctx->variables) {
         memory_free(mm, ctx);
         return NULL;
@@ -81,7 +93,7 @@ static void destroy_execution_context(ExecutionContext* ctx) {
     
     /* Liberar valores das variáveis */
     for (int i = 0; i < ctx->variable_count; i++) {
-        free_runtime_value(&ctx->variables[i]);
+        free_runtime_value(&ctx->variables[i].value);
     }
     
     memory_free(ctx->memory_manager, ctx->variables);
@@ -151,18 +163,64 @@ static void free_runtime_value(RuntimeValue* value) {
 }
 
 /* Obter variável */
-static RuntimeValue* get_variable(ExecutionContext* ctx, const char* name) {
-    for (int i = 0; i < ctx->variable_count; i++) {
-        /* Assumindo que o nome está armazenado em algum lugar */
-        /* Esta implementação precisa ser ajustada para funcionar com a tabela de símbolos */
+static RuntimeVariable* get_variable(ExecutionContext* ctx, const char* name) {
+    for (int i = ctx->variable_count - 1; i >= 0; i--) {
+        if (strcmp(ctx->variables[i].name, name) == 0) {
+            return &ctx->variables[i];
+        }
     }
     return NULL;
 }
 
+static void declare_variable(ExecutionContext* ctx, const char* name, RuntimeValue value) {
+    if (ctx->variable_count >= ctx->max_variables) {
+        int new_max = ctx->max_variables * 2;
+        RuntimeVariable* new_vars = (RuntimeVariable*)memory_realloc(ctx->memory_manager,
+                                                                     ctx->variables,
+                                                                     sizeof(RuntimeVariable) * new_max);
+        if (!new_vars) {
+            runtime_error(ctx, "Falha ao alocar variáveis");
+            return;
+        }
+        ctx->variables = new_vars;
+        ctx->max_variables = new_max;
+    }
+
+    RuntimeVariable* var = &ctx->variables[ctx->variable_count++];
+    strncpy(var->name, name, MAX_IDENTIFIER_LENGTH - 1);
+    var->name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
+    copy_runtime_value(&var->value, &value);
+    var->scope_level = ctx->current_scope;
+}
+
 /* Definir variável */
 static void set_variable(ExecutionContext* ctx, const char* name, RuntimeValue value) {
-    /* Implementação para definir variável */
-    /* Esta implementação precisa ser ajustada para funcionar com a tabela de símbolos */
+    RuntimeVariable* var = get_variable(ctx, name);
+    if (!var) {
+        runtime_error(ctx, "Variável não declarada");
+        return;
+    }
+
+    free_runtime_value(&var->value);
+    copy_runtime_value(&var->value, &value);
+    var->value.is_initialized = 1;
+}
+
+static void enter_scope(ExecutionContext* ctx) {
+    ctx->current_scope++;
+}
+
+static void exit_scope(ExecutionContext* ctx) {
+    for (int i = ctx->variable_count - 1; i >= 0; i--) {
+        if (ctx->variables[i].scope_level == ctx->current_scope) {
+            free_runtime_value(&ctx->variables[i].value);
+            for (int j = i; j < ctx->variable_count - 1; j++) {
+                ctx->variables[j] = ctx->variables[j + 1];
+            }
+            ctx->variable_count--;
+        }
+    }
+    if (ctx->current_scope > 0) ctx->current_scope--;
 }
 
 /* Converter valor para booleano */
@@ -218,31 +276,14 @@ static RuntimeValue execute_expression(ExecutionContext* ctx, ASTNode* node) {
             
         case AST_IDENTIFIER: {
             const char* var_name = node->data.literal.string_val;
-            Symbol* symbol = symbol_table_lookup(ctx->symbol_table, var_name);
-            
-            if (!symbol) {
+            RuntimeVariable* var = get_variable(ctx, var_name);
+
+            if (!var) {
                 runtime_error(ctx, "Variável não declarada");
                 return result;
             }
-            
-            result.type = symbol->type;
-            result.is_initialized = symbol->is_initialized;
-            
-            if (symbol->is_initialized) {
-                switch (symbol->type) {
-                    case TYPE_INTEIRO:
-                        result.value.int_val = symbol->value.int_value;
-                        break;
-                    case TYPE_DECIMAL:
-                        result.value.decimal_val = symbol->value.decimal_value;
-                        break;
-                    case TYPE_TEXTO:
-                        result.value.string_val = strdup(symbol->value.string_value);
-                        break;
-                    default:
-                        break;
-                }
-            }
+
+            copy_runtime_value(&result, &var->value);
             break;
         }
         
@@ -440,31 +481,34 @@ static void execute_io_statement(ExecutionContext* ctx, ASTNode* node) {
         for (int i = 0; i < node->child_count; i++) {
             if (node->children[i]->type == AST_IDENTIFIER) {
                 const char* var_name = node->children[i]->data.literal.string_val;
-                Symbol* symbol = symbol_table_lookup(ctx->symbol_table, var_name);
-                
-                if (!symbol) {
+                RuntimeVariable* var = get_variable(ctx, var_name);
+
+                if (!var) {
                     runtime_error(ctx, "Variável não declarada");
                     return;
                 }
-                
+
                 printf("Digite um valor: ");
                 fflush(stdout);
-                
-                switch (symbol->type) {
+
+                switch (var->value.type) {
                     case TYPE_INTEIRO:
-                        scanf("%d", &symbol->value.int_value);
+                        scanf("%d", &var->value.value.int_val);
                         break;
                     case TYPE_DECIMAL:
-                        scanf("%lf", &symbol->value.decimal_value);
+                        scanf("%lf", &var->value.value.decimal_val);
                         break;
                     case TYPE_TEXTO:
-                        scanf("%s", symbol->value.string_value);
+                        if (!var->value.value.string_val) {
+                            var->value.value.string_val = malloc(MAX_STRING_LENGTH);
+                        }
+                        scanf("%s", var->value.value.string_val);
                         break;
                     default:
                         break;
                 }
-                
-                symbol->is_initialized = 1;
+
+                var->value.is_initialized = 1;
             }
         }
     }
@@ -480,9 +524,9 @@ static void execute_assignment(ExecutionContext* ctx, ASTNode* node) {
     }
     
     const char* var_name = node->children[0]->data.literal.string_val;
-    Symbol* symbol = symbol_table_lookup(ctx->symbol_table, var_name);
-    
-    if (!symbol) {
+    RuntimeVariable* var = get_variable(ctx, var_name);
+
+    if (!var) {
         runtime_error(ctx, "Variável não declarada");
         return;
     }
@@ -495,32 +539,35 @@ static void execute_assignment(ExecutionContext* ctx, ASTNode* node) {
     }
     
     /* Atribuir valor */
-    switch (symbol->type) {
+    switch (var->value.type) {
         case TYPE_INTEIRO:
             if (value.type == TYPE_INTEIRO) {
-                symbol->value.int_value = value.value.int_val;
+                var->value.value.int_val = value.value.int_val;
             } else if (value.type == TYPE_DECIMAL) {
-                symbol->value.int_value = (int)value.value.decimal_val;
+                var->value.value.int_val = (int)value.value.decimal_val;
             }
             break;
         case TYPE_DECIMAL:
             if (value.type == TYPE_DECIMAL) {
-                symbol->value.decimal_value = value.value.decimal_val;
+                var->value.value.decimal_val = value.value.decimal_val;
             } else if (value.type == TYPE_INTEIRO) {
-                symbol->value.decimal_value = (double)value.value.int_val;
+                var->value.value.decimal_val = (double)value.value.int_val;
             }
             break;
         case TYPE_TEXTO:
             if (value.type == TYPE_TEXTO && value.value.string_val) {
-                strncpy(symbol->value.string_value, value.value.string_val, MAX_STRING_LENGTH - 1);
-                symbol->value.string_value[MAX_STRING_LENGTH - 1] = '\0';
+                if (!var->value.value.string_val) {
+                    var->value.value.string_val = malloc(MAX_STRING_LENGTH);
+                }
+                strncpy(var->value.value.string_val, value.value.string_val, MAX_STRING_LENGTH - 1);
+                var->value.value.string_val[MAX_STRING_LENGTH - 1] = '\0';
             }
             break;
         default:
             break;
     }
-    
-    symbol->is_initialized = 1;
+
+    var->value.is_initialized = 1;
     free_runtime_value(&value);
 }
 
@@ -529,14 +576,28 @@ static void execute_statement(ExecutionContext* ctx, ASTNode* node) {
     if (!node || ctx->error_flag) return;
     
     switch (node->type) {
+        case AST_VAR_DECL: {
+            RuntimeValue init_val = create_runtime_value(node->data.var_decl.var_type);
+            if (node->child_count > 0) {
+                init_val = execute_expression(ctx, node->children[0]);
+            }
+            declare_variable(ctx, node->token.value, init_val);
+            free_runtime_value(&init_val);
+            break;
+        }
+
         case AST_ASSIGNMENT:
             execute_assignment(ctx, node);
             break;
-            
+
         case AST_FUNCTION_CALL:
             execute_io_statement(ctx, node);
             break;
-            
+
+        case AST_BLOCK:
+            execute_block(ctx, node);
+            break;
+
         default:
             /* Para outros tipos de comando */
             for (int i = 0; i < node->child_count; i++) {
@@ -550,11 +611,13 @@ static void execute_statement(ExecutionContext* ctx, ASTNode* node) {
 /* Executar bloco */
 static void execute_block(ExecutionContext* ctx, ASTNode* node) {
     if (!node || ctx->error_flag) return;
-    
+
+    enter_scope(ctx);
     for (int i = 0; i < node->child_count; i++) {
         execute_statement(ctx, node->children[i]);
         if (ctx->error_flag || ctx->return_flag) break;
     }
+    exit_scope(ctx);
 }
 
 /* Criar interpretador */
