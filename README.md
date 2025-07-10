@@ -59,6 +59,9 @@ make test
 
 # Executar teste básico (sem argumentos)
 ./bin/compiler
+
+# Executar conjunto completo de testes
+make test
 ```
 
 ## 📝 Linguagem Suportada

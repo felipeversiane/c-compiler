@@ -76,6 +76,7 @@
 - [x] Execução de comandos de entrada/saída
 - [x] Gerenciamento de variáveis em runtime
 - [x] Tratamento de erros de execução
+- [x] Correções na geração da AST e inserção na tabela de símbolos
 - [x] Suporte a tipos inteiro, decimal e texto
 
 ## Implementado Recentemente 🆕

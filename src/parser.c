@@ -399,14 +399,18 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         ast_destroy(var_decl);
         return NULL;
     }
-    
-    /* SALVAR O NOME DA VARIÁVEL ANTES DE CONSUMIR O TOKEN */
+
+    /* Salvar token e nome da variável antes de consumir */
+    Token var_token = parser->lexer->current_token;
     char var_name[MAX_IDENTIFIER_LENGTH];
-    strncpy(var_name, parser->lexer->current_token.value, MAX_IDENTIFIER_LENGTH - 1);
+    strncpy(var_name, var_token.value, MAX_IDENTIFIER_LENGTH - 1);
     var_name[MAX_IDENTIFIER_LENGTH - 1] = '\0';
-    
-    /* Agora consumir o token da variável */
+
+    /* Consumir o token da variável */
     consume_token(parser, TOKEN_VARIAVEL);
+
+    /* Atribuir o token da variável ao nó para relatórios corretos */
+    var_decl->token = var_token;
     
     /* Verificar se tem dimensões */
     if (match_token(parser, TOKEN_ABRE_COLCH)) {
@@ -414,26 +418,26 @@ static ASTNode* parse_var_declaration(Parser* parser) {
         
         /* Ler dimensão - aceitar tanto inteiro quanto decimal */
         Token dim_token = parser->lexer->current_token;
-        
+
         if (dim_token.type == TOKEN_NUMERO_INT) {
-            var_decl->data.var_decl.type_info.size = string_to_int(dim_token.value);
+            int val = string_to_int(dim_token.value);
+            if (var_type == TYPE_DECIMAL) {
+                var_decl->data.var_decl.type_info.precision = val;
+            } else {
+                var_decl->data.var_decl.type_info.size = val;
+            }
             consume_token(parser, TOKEN_NUMERO_INT);
         } else if (dim_token.type == TOKEN_NUMERO_DEC) {
-            /* Para decimal, aceitar número decimal como dimensão */
             if (var_type == TYPE_DECIMAL) {
-                /* Parse the decimal number - use integer part as size */
                 double decimal_val = string_to_double(dim_token.value);
-                var_decl->data.var_decl.type_info.size = (int)decimal_val;
-                
-                /* Extract decimal part for scale if present */
+                var_decl->data.var_decl.type_info.precision = (int)decimal_val;
+
                 char* dot_pos = strchr(dim_token.value, '.');
                 if (dot_pos) {
                     char* decimal_part = dot_pos + 1;
-                    /* Count decimal places or use the decimal part as scale */
                     var_decl->data.var_decl.type_info.scale = strlen(decimal_part);
                 }
             } else {
-                /* For non-decimal types, just use integer part */
                 double decimal_val = string_to_double(dim_token.value);
                 var_decl->data.var_decl.type_info.size = (int)decimal_val;
             }
@@ -859,9 +863,16 @@ static ASTNode* parse_return_statement(Parser* parser) {
 static ASTNode* parse_io_statement(Parser* parser) {
     ASTNode* io_stmt = create_node(parser, AST_FUNCTION_CALL);
     if (!io_stmt) return NULL;
-    
+
     /* Tipo de operação */
     TokenType op_type = parser->lexer->current_token.type;
+
+    if (op_type == TOKEN_LEIA) {
+        strncpy(io_stmt->data.literal.string_val, "leia", MAX_STRING_LENGTH - 1);
+    } else {
+        strncpy(io_stmt->data.literal.string_val, "escreva", MAX_STRING_LENGTH - 1);
+    }
+
     consume_token(parser, op_type);
     
     /* Parâmetros */
@@ -906,19 +917,26 @@ static ASTNode* parse_assignment(Parser* parser) {
     if (!assign) return NULL;
     
     /* Variável */
-    if (!expect_token(parser, TOKEN_VARIAVEL)) {
+    if (!match_token(parser, TOKEN_VARIAVEL)) {
+        parser_error(parser, "Esperado nome de variável");
         ast_destroy(assign);
         return NULL;
     }
-    
+
+    /* Capturar token da variável */
+    Token var_token = parser->lexer->current_token;
+    consume_token(parser, TOKEN_VARIAVEL);
+
     /* Criar nó para variável */
     ASTNode* var = create_node(parser, AST_IDENTIFIER);
     if (!var) {
         ast_destroy(assign);
         return NULL;
     }
-    
-    strncpy(var->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
+
+    /* Definir nome e token corretos */
+    strncpy(var->data.literal.string_val, var_token.value, MAX_STRING_LENGTH - 1);
+    var->token = var_token;
     
     /* Operador de atribuição */
     if (!expect_token(parser, TOKEN_ATRIB)) {
@@ -953,12 +971,17 @@ static ASTNode* parse_function_call(Parser* parser) {
     if (!call) return NULL;
     
     /* Nome da função */
-    if (!expect_token(parser, TOKEN_FUNCAO_ID)) {
+    if (!match_token(parser, TOKEN_FUNCAO_ID)) {
+        parser_error(parser, "Esperado identificador de função");
         ast_destroy(call);
         return NULL;
     }
-    
-    strncpy(call->data.literal.string_val, parser->lexer->current_token.value, MAX_STRING_LENGTH - 1);
+
+    Token func_token = parser->lexer->current_token;
+    strncpy(call->data.literal.string_val, func_token.value, MAX_STRING_LENGTH - 1);
+    call->token = func_token;
+
+    consume_token(parser, TOKEN_FUNCAO_ID);
     
     /* Parâmetros */
     if (!expect_token(parser, TOKEN_ABRE_PAREN)) {
