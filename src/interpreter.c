@@ -140,7 +140,7 @@ static void copy_runtime_value(RuntimeValue* dest, RuntimeValue* src) {
             break;
         case TYPE_TEXTO:
             if (src->value.string_val) {
-                dest->value.string_val = strdup(src->value.string_val);
+                dest->value.string_val = string_duplicate(src->value.string_val);
             } else {
                 dest->value.string_val = NULL;
             }
