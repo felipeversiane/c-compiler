@@ -20,18 +20,20 @@ static const struct {
     {NULL, TOKEN_EOF}
 };
 
-/* Criar novo lexer */
+/* Criar lexer */
 Lexer* lexer_create(const char* source) {
-    Lexer* lexer = (Lexer*)malloc(sizeof(Lexer));
+    if (!source) return NULL;
+    
+    Lexer* lexer = (Lexer*)memory_alloc(g_memory_manager, sizeof(Lexer));
     if (!lexer) {
-        error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar memória para lexer");
+        error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar lexer");
         return NULL;
     }
     
     lexer->source = string_duplicate(source);
     if (!lexer->source) {
-        free(lexer);
-        error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar memória para código fonte");
+        memory_free(g_memory_manager, lexer);
+        error_report(ERROR_MEMORY, 0, 0, "Falha ao duplicar código fonte");
         return NULL;
     }
     
@@ -40,22 +42,24 @@ Lexer* lexer_create(const char* source) {
     lexer->column = 1;
     lexer->length = strlen(source);
     lexer->error_count = 0;
-    lexer->current_token.type = TOKEN_EOF;
-    lexer->current_token.value[0] = '\0';
-    lexer->current_token.line = 1;
-    lexer->current_token.column = 1;
+    lexer->input = NULL;
     
     return lexer;
 }
 
 /* Destruir lexer */
 void lexer_destroy(Lexer* lexer) {
-    if (lexer) {
-        if (lexer->source) {
-            free(lexer->source);
-        }
-        free(lexer);
+    if (!lexer) return;
+    
+    if (lexer->source) {
+        memory_free(g_memory_manager, lexer->source);
     }
+    
+    if (lexer->input) {
+        fclose(lexer->input);
+    }
+    
+    memory_free(g_memory_manager, lexer);
 }
 
 /* Caractere atual */

@@ -155,7 +155,7 @@ static void free_runtime_value(RuntimeValue* value) {
     if (!value) return;
     
     if (value->type == TYPE_TEXTO && value->value.string_val) {
-        free(value->value.string_val);
+        memory_free(g_memory_manager, value->value.string_val);
         value->value.string_val = NULL;
     }
     
@@ -267,7 +267,7 @@ static RuntimeValue execute_expression(ExecutionContext* ctx, ASTNode* node) {
                     result.value.decimal_val = node->data.literal.decimal_val;
                     break;
                 case TYPE_TEXTO:
-                    result.value.string_val = strdup(node->data.literal.string_val);
+                    result.value.string_val = string_duplicate(node->data.literal.string_val);
                     break;
                 default:
                     break;
@@ -500,7 +500,7 @@ static void execute_io_statement(ExecutionContext* ctx, ASTNode* node) {
                         break;
                     case TYPE_TEXTO:
                         if (!var->value.value.string_val) {
-                            var->value.value.string_val = malloc(MAX_STRING_LENGTH);
+                            var->value.value.string_val = memory_alloc(ctx->memory_manager, MAX_STRING_LENGTH);
                         }
                         scanf("%s", var->value.value.string_val);
                         break;
@@ -557,7 +557,7 @@ static void execute_assignment(ExecutionContext* ctx, ASTNode* node) {
         case TYPE_TEXTO:
             if (value.type == TYPE_TEXTO && value.value.string_val) {
                 if (!var->value.value.string_val) {
-                    var->value.value.string_val = malloc(MAX_STRING_LENGTH);
+                    var->value.value.string_val = memory_alloc(ctx->memory_manager, MAX_STRING_LENGTH);
                 }
                 strncpy(var->value.value.string_val, value.value.string_val, MAX_STRING_LENGTH - 1);
                 var->value.value.string_val[MAX_STRING_LENGTH - 1] = '\0';
@@ -622,16 +622,20 @@ static void execute_block(ExecutionContext* ctx, ASTNode* node) {
 
 /* Criar interpretador */
 Interpreter* interpreter_create(ASTNode* ast, SymbolTable* st) {
-    Interpreter* interpreter = (Interpreter*)malloc(sizeof(Interpreter));
+    Interpreter* interpreter = (Interpreter*)memory_alloc(g_memory_manager, sizeof(Interpreter));
     if (!interpreter) {
+        error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar interpretador");
         return NULL;
     }
     
     interpreter->ast = ast;
     interpreter->symbol_table = st;
-    interpreter->memory_manager = memory_manager_create();
+    interpreter->memory_manager = g_memory_manager;
     interpreter->running = 0;
     interpreter->return_flag = 0;
+    
+    /* Inicializar valor de retorno */
+    interpreter->return_value.int_val = 0;
     
     return interpreter;
 }
@@ -640,11 +644,7 @@ Interpreter* interpreter_create(ASTNode* ast, SymbolTable* st) {
 void interpreter_destroy(Interpreter* interpreter) {
     if (!interpreter) return;
     
-    if (interpreter->memory_manager) {
-        memory_manager_destroy(interpreter->memory_manager);
-    }
-    
-    free(interpreter);
+    memory_free(g_memory_manager, interpreter);
 }
 
 /* Executar interpretador */

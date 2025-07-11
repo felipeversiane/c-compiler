@@ -38,7 +38,7 @@ static int validate_type_dimensions(SemanticContext* ctx, DataType type, TypeInf
 
 /* Criar contexto */
 static SemanticContext* create_context(SymbolTable* st) {
-    SemanticContext* ctx = (SemanticContext*)malloc(sizeof(SemanticContext));
+    SemanticContext* ctx = (SemanticContext*)memory_alloc(g_memory_manager, sizeof(SemanticContext));
     if (!ctx) {
         error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar contexto semântico");
         return NULL;
@@ -56,7 +56,9 @@ static SemanticContext* create_context(SymbolTable* st) {
 
 /* Destruir contexto */
 static void destroy_context(SemanticContext* ctx) {
-    free(ctx);
+    if (ctx) {
+        memory_free(g_memory_manager, ctx);
+    }
 }
 
 /* Reportar erro semântico */

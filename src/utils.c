@@ -10,7 +10,7 @@ char* string_duplicate(const char* str) {
     if (!str) return NULL;
     
     size_t len = strlen(str) + 1;
-    char* copy = (char*)malloc(len);
+    char* copy = (char*)memory_alloc(g_memory_manager, len);
     if (copy) {
         strcpy(copy, str);
     }

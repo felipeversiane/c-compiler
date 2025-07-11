@@ -181,8 +181,8 @@ char* read_file(const char* filename) {
         return NULL;
     }
     
-    /* Alocar buffer */
-    char* content = (char*)malloc(size + 1);
+    /* Alocar buffer usando gerenciador de memória */
+    char* content = (char*)memory_alloc(g_memory_manager, size + 1);
     if (!content) {
         fprintf(stderr, "Erro: Falha ao alocar memória para arquivo\n");
         fclose(file);
@@ -262,7 +262,7 @@ int main(int argc, char* argv[]) {
     /* Verificar se houve erros */
     if (g_error_count > 0) {
         printf("COMPILAÇÃO FALHOU: %d erro(s) encontrado(s)\n", g_error_count);
-        free(source_code);
+        memory_free(g_memory_manager, source_code);
         memory_manager_destroy(g_memory_manager);
         return 1;
     }
@@ -270,7 +270,7 @@ int main(int argc, char* argv[]) {
     printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
     
     /* Limpar e finalizar */
-    free(source_code);
+    memory_free(g_memory_manager, source_code);
     memory_manager_destroy(g_memory_manager);
     
     return 0;

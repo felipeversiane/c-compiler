@@ -2,7 +2,7 @@
 
 /* Criar nó da AST */
 ASTNode* ast_create_node(ASTNodeType type) {
-    ASTNode* node = (ASTNode*)malloc(sizeof(ASTNode));
+    ASTNode* node = (ASTNode*)memory_alloc(g_memory_manager, sizeof(ASTNode));
     if (!node) {
         error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar nó da AST");
         return NULL;
@@ -29,10 +29,10 @@ void ast_destroy(ASTNode* node) {
         for (int i = 0; i < node->child_count; i++) {
             ast_destroy(node->children[i]);
         }
-        free(node->children);
+        memory_free(g_memory_manager, node->children);
     }
     
-    free(node);
+    memory_free(g_memory_manager, node);
 }
 
 /* Adicionar filho a um nó */
@@ -42,7 +42,7 @@ void ast_add_child(ASTNode* parent, ASTNode* child) {
     /* Verificar se precisa aumentar capacidade */
     if (parent->child_count >= parent->child_capacity) {
         int new_capacity = parent->child_capacity == 0 ? 4 : parent->child_capacity * 2;
-        ASTNode** new_children = (ASTNode**)realloc(parent->children, 
+        ASTNode** new_children = (ASTNode**)memory_realloc(g_memory_manager, parent->children, 
                                                    new_capacity * sizeof(ASTNode*));
         
         if (!new_children) {

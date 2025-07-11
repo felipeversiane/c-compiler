@@ -24,7 +24,7 @@ static int parse_type_dimensions(Parser* parser, TypeInfo* type_info);
 
 /* Criar parser */
 Parser* parser_create(Lexer* lexer) {
-    Parser* parser = (Parser*)malloc(sizeof(Parser));
+    Parser* parser = (Parser*)memory_alloc(g_memory_manager, sizeof(Parser));
     if (!parser) {
         error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar parser");
         return NULL;
@@ -51,7 +51,7 @@ void parser_destroy(Parser* parser) {
         ast_destroy(parser->ast);
     }
     
-    free(parser);
+    memory_free(g_memory_manager, parser);
 }
 
 /* Reportar erro sintático */

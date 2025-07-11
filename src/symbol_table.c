@@ -2,7 +2,7 @@
 
 /* Criar tabela de símbolos */
 SymbolTable* symbol_table_create(void) {
-    SymbolTable* st = (SymbolTable*)malloc(sizeof(SymbolTable));
+    SymbolTable* st = (SymbolTable*)memory_alloc(g_memory_manager, sizeof(SymbolTable));
     if (!st) {
         error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar tabela de símbolos");
         return NULL;
@@ -28,12 +28,12 @@ void symbol_table_destroy(SymbolTable* st) {
         Symbol* symbol = st->table[i];
         while (symbol) {
             Symbol* next = symbol->next;
-            free(symbol);
+            memory_free(g_memory_manager, symbol);
             symbol = next;
         }
     }
     
-    free(st);
+    memory_free(g_memory_manager, st);
 }
 
 /* Função de hash para strings */
@@ -59,7 +59,7 @@ Symbol* symbol_table_insert(SymbolTable* st, const char* name, DataType type) {
     }
     
     /* Criar novo símbolo */
-    Symbol* symbol = (Symbol*)malloc(sizeof(Symbol));
+    Symbol* symbol = (Symbol*)memory_alloc(g_memory_manager, sizeof(Symbol));
     if (!symbol) {
         error_report(ERROR_MEMORY, 0, 0, "Falha ao alocar símbolo");
         return NULL;
@@ -126,7 +126,7 @@ void symbol_table_exit_scope(SymbolTable* st) {
             if ((*symbol_ptr)->scope_level == st->scope_level) {
                 Symbol* to_remove = *symbol_ptr;
                 *symbol_ptr = to_remove->next;
-                free(to_remove);
+                memory_free(g_memory_manager, to_remove);
                 st->symbol_count--;
             } else {
                 symbol_ptr = &(*symbol_ptr)->next;
