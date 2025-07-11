@@ -24,12 +24,6 @@ typedef struct {
     int last_warning_percent;
 } InternalMemoryManager;
 
-/* Macros para debug */
-#define DEBUG_MEMORY 0
-#define MEMORY_POISON_VALUE 0xDEADBEEF
-#define MEMORY_GUARD_SIZE 16
-#define MEMORY_BLOCK_OVERHEAD 16 // Overhead para cada bloco de rastreamento
-
 /* Funções auxiliares */
 static void poison_memory(void* ptr, size_t size);
 static int check_memory_corruption(void* ptr, size_t size);
@@ -207,6 +201,7 @@ void* memory_alloc(MemoryManager* mm, size_t size) {
 
 /* Liberar memória com verificação completa */
 void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line, const char* function) {
+    /* function é mantido para consistência com a interface de debug, mesmo que não usado */
     if (!mm || !ptr) return;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
@@ -578,16 +573,17 @@ static void add_memory_guards(void* ptr, size_t size) {
     if (!DEBUG_MEMORY) return;
     
     uint32_t guard_pattern = 0xDEADC0DE;
+    size_t guard_ints = MEMORY_GUARD_SIZE / sizeof(uint32_t);
     
     /* Guarda no início */
     uint32_t* start_guard = (uint32_t*)ptr;
-    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < guard_ints; i++) {
         start_guard[i] = guard_pattern;
     }
     
     /* Guarda no final */
     uint32_t* end_guard = (uint32_t*)((char*)ptr + MEMORY_GUARD_SIZE + size);
-    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < guard_ints; i++) {
         end_guard[i] = guard_pattern;
     }
 }
@@ -596,10 +592,11 @@ static int verify_memory_guards(void* ptr, size_t size) {
     if (!DEBUG_MEMORY) return 1;
     
     uint32_t guard_pattern = 0xDEADC0DE;
+    size_t guard_ints = MEMORY_GUARD_SIZE / sizeof(uint32_t);
     
     /* Verificar guarda no início */
     uint32_t* start_guard = (uint32_t*)ptr;
-    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < guard_ints; i++) {
         if (start_guard[i] != guard_pattern) {
             return 0;
         }
@@ -607,7 +604,7 @@ static int verify_memory_guards(void* ptr, size_t size) {
     
     /* Verificar guarda no final */
     uint32_t* end_guard = (uint32_t*)((char*)ptr + MEMORY_GUARD_SIZE + size);
-    for (int i = 0; i < MEMORY_GUARD_SIZE / sizeof(uint32_t); i++) {
+    for (size_t i = 0; i < guard_ints; i++) {
         if (end_guard[i] != guard_pattern) {
             return 0;
         }

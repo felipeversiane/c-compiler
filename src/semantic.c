@@ -16,7 +16,6 @@ static void destroy_context(SemanticContext* ctx);
 static void semantic_error(SemanticContext* ctx, Token token, const char* message);
 static void semantic_warning(SemanticContext* ctx, Token token, const char* message);
 static int check_type_compatibility(DataType type1, DataType type2);
-static int check_type_strict_compatibility(DataType type1, DataType type2);
 static DataType check_binary_operator(TokenType op, DataType left, DataType right);
 static DataType analyze_expression(SemanticContext* ctx, ASTNode* node);
 static void analyze_var_declaration(SemanticContext* ctx, ASTNode* node);
@@ -83,11 +82,6 @@ static int check_type_compatibility(DataType type1, DataType type2) {
     if (type2 == TYPE_INTEIRO && type1 == TYPE_DECIMAL) return 1;
     
     return 0;
-}
-
-/* Verificar compatibilidade estrita de tipos (sem conversões) */
-static int check_type_strict_compatibility(DataType type1, DataType type2) {
-    return type1 == type2;
 }
 
 /* Validar nome de função */

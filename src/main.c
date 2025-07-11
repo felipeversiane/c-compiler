@@ -1,4 +1,5 @@
 #include "../include/compiler.h"
+#include <sys/stat.h>
 
 /* Função para testar o analisador léxico */
 void test_lexer(const char* source_code) {
@@ -164,20 +165,6 @@ void test_interpreter(const char* source_code) {
 
 /* Função para ler arquivo */
 char* read_file(const char* filename) {
-    /* Verificar se há memória disponível antes de abrir o arquivo */
-    struct stat file_stat;
-    if (stat(filename, &file_stat) != 0) {
-        fprintf(stderr, "Erro: Não foi possível obter informações do arquivo '%s'\n", filename);
-        return NULL;
-    }
-
-    /* Verificar se há memória suficiente para o arquivo + buffer de segurança */
-    size_t required_memory = file_stat.st_size + 1024; // 1KB extra para segurança
-    if (g_memory_manager->allocated + required_memory > g_memory_manager->limit) {
-        error_report(ERROR_MEMORY, 0, 0, "Memória insuficiente para abrir o arquivo");
-        return NULL;
-    }
-
     FILE* file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Erro: Não foi possível abrir o arquivo '%s'\n", filename);
@@ -191,6 +178,14 @@ char* read_file(const char* filename) {
     
     if (size <= 0) {
         fprintf(stderr, "Erro: Arquivo vazio ou erro ao ler tamanho\n");
+        fclose(file);
+        return NULL;
+    }
+    
+    /* Verificar se há memória suficiente para o arquivo + buffer de segurança */
+    size_t required_memory = size + 1024; // 1KB extra para segurança
+    if (g_memory_manager->allocated + required_memory > g_memory_manager->limit) {
+        error_report(ERROR_MEMORY, 0, 0, "Memória insuficiente para abrir o arquivo");
         fclose(file);
         return NULL;
     }

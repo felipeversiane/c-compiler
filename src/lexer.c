@@ -210,22 +210,20 @@ static Token read_identifier(Lexer* lexer) {
         if (lexer_is_keyword(buffer)) {
             token.type = lexer_get_keyword_type(buffer);
         } else {
+            /* Erro: identificador malformado */
             token.type = TOKEN_ERROR;
-            if (buffer[0] == '!' || (buffer[0] == '_' && buffer[1] == '_')) {
-                snprintf(token.value, MAX_TOKEN_LENGTH,
-                         "Identificador malformado: '%s'",
-                         buffer);
-            } else if (isalpha((unsigned char)buffer[0])) {
-                snprintf(token.value, MAX_TOKEN_LENGTH,
-                         "Identificador deve começar com ! para variáveis ou __ para funções: '%s'",
-                         buffer);
-            } else {
-                snprintf(token.value, MAX_TOKEN_LENGTH,
-                         "Palavra-chave inválida ou identificador desconhecido: '%s'",
-                         buffer);
-            }
-            lexer->error_count++;
+            snprintf(token.value, MAX_TOKEN_LENGTH,
+                     "ID malformado: %.200s",
+                     buffer);
+            return token;
         }
+
+        /* Erro: identificador sem marcador correto */
+        token.type = TOKEN_ERROR;
+        snprintf(token.value, MAX_TOKEN_LENGTH,
+                 "ID deve começar com ! (var) ou __ (func): %.200s",
+                 buffer);
+        return token;
     }
     
     return token;
