@@ -28,6 +28,7 @@ typedef struct {
 #define DEBUG_MEMORY 0
 #define MEMORY_POISON_VALUE 0xDEADBEEF
 #define MEMORY_GUARD_SIZE 16
+#define MEMORY_BLOCK_OVERHEAD 16 // Overhead para cada bloco de rastreamento
 
 /* Funções auxiliares */
 static void poison_memory(void* ptr, size_t size);
@@ -120,18 +121,21 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
     
+    /* Calcular tamanho total necessário incluindo overhead */
+    size_t total_overhead = MEMORY_BLOCK_OVERHEAD + (2 * MEMORY_GUARD_SIZE);
+    size_t total_size = size + total_overhead;
+    
     /* Verificar limite de memória */
-    if (mm->allocated + size > mm->limit) {
+    if (mm->allocated + total_size > mm->limit) {
         error_report(ERROR_MEMORY, line, 0, "Memória Insuficiente");
         if (DEBUG_MEMORY) {
-            fprintf(stderr, "ERRO: Tentativa de alocar %zu bytes, mas apenas %zu bytes disponíveis\n",
-                    size, mm->limit - mm->allocated);
+            fprintf(stderr, "ERRO: Tentativa de alocar %zu bytes (+ %zu overhead), mas apenas %zu bytes disponíveis\n",
+                    size, total_overhead, mm->limit - mm->allocated);
         }
         return NULL;
     }
     
     /* Alocar memória com guardas */
-    size_t total_size = size + (2 * MEMORY_GUARD_SIZE);
     void* raw_ptr = malloc(total_size);
     if (!raw_ptr) {
         error_report(ERROR_MEMORY, line, 0, "Falha na alocação de memória do sistema");
@@ -163,18 +167,14 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     imm->blocks = block;
     
     /* Atualizar estatísticas */
-    mm->allocated += size;
+    mm->allocated += total_size;  /* Incluir overhead na contagem */
     mm->allocation_count++;
     imm->active_blocks++;
-    imm->total_allocated += size;
-
-    update_process_peak_usage(mm);
+    imm->total_allocated += total_size;
     
     if (mm->allocated > mm->peak_usage) {
         mm->peak_usage = mm->allocated;
     }
-
-    update_process_peak_usage(mm);
     
     /* Calcular fragmentação */
     calculate_fragmentation(imm);
@@ -186,13 +186,16 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
         if (current_percent > imm->last_warning_percent + 5) {
             imm->last_warning_percent = current_percent;
             if (DEBUG_MEMORY) {
-                printf("DEBUG: Uso de memória aumentou para %d%%\n", current_percent);
+                printf("DEBUG: Uso de memória aumentou para %d%% (incluindo overhead)\n", current_percent);
             }
         }
     }
     
     /* Log da operação */
-    log_memory_operation("ALLOC", user_ptr, size, file, line);
+    if (DEBUG_MEMORY) {
+        printf("MEMORY_LOG: ALLOC %p (%zu bytes + %zu overhead) em %s:%d\n", 
+               user_ptr, size, total_overhead, file, line);
+    }
     
     return user_ptr;
 }
@@ -207,53 +210,48 @@ void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line,
     if (!mm || !ptr) return;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
+    void* raw_ptr = (char*)ptr - MEMORY_GUARD_SIZE;
     
-    /* Encontrar e remover bloco */
-    MemoryBlock* prev = NULL;
-    MemoryBlock* block = imm->blocks;
+    /* Encontrar bloco */
+    MemoryBlock** curr = &imm->blocks;
+    MemoryBlock* block = NULL;
     
-    while (block) {
-        void* user_ptr = (char*)block->ptr + MEMORY_GUARD_SIZE;
-        if (user_ptr == ptr) {
-            /* Verificar guardas de memória */
-            if (!verify_memory_guards(block->ptr, block->size)) {
-                fprintf(stderr, "ERRO: Corrupção de memória detectada ao liberar %p\n", ptr);
-            }
-            
-            /* Remover da lista */
-            if (prev) {
-                prev->next = block->next;
-            } else {
-                imm->blocks = block->next;
-            }
-            
-            /* Atualizar estatísticas */
-            mm->allocated -= block->size;
-            mm->deallocation_count++;
-            imm->active_blocks--;
-            imm->total_freed += block->size;
-            
-            /* Poisonar memória antes de liberar */
-            poison_memory(ptr, block->size);
-            
-            /* Log da operação */
-            log_memory_operation("FREE", ptr, block->size, file, line);
-            
-            /* Liberar memória */
-            free(block->ptr);
-            free(block);
-
-            update_process_peak_usage(mm);
-            
-            return;
+    while (*curr) {
+        if ((*curr)->ptr == raw_ptr) {
+            block = *curr;
+            *curr = block->next;
+            break;
         }
-        
-        prev = block;
-        block = block->next;
+        curr = &(*curr)->next;
     }
     
-    /* Ponteiro não encontrado - possível erro */
-    fprintf(stderr, "ERRO: Tentativa de liberar ponteiro não rastreado: %p em %s:%d\n", ptr, file, line);
+    if (!block) {
+        error_report(ERROR_MEMORY, line, 0, "Tentativa de liberar ponteiro não rastreado");
+        return;
+    }
+    
+    /* Verificar corrupção */
+    if (!verify_memory_guards(block->ptr, block->size)) {
+        fprintf(stderr, "ERRO: Corrupção de memória detectada ao liberar %p\n", ptr);
+    }
+    
+    /* Atualizar estatísticas */
+    size_t total_overhead = MEMORY_BLOCK_OVERHEAD + (2 * MEMORY_GUARD_SIZE);
+    size_t total_size = block->size + total_overhead;
+    mm->allocated -= total_size;
+    mm->deallocation_count++;
+    imm->active_blocks--;
+    imm->total_freed += total_size;
+    
+    /* Log da operação */
+    if (DEBUG_MEMORY) {
+        printf("MEMORY_LOG: FREE %p (%zu bytes + %zu overhead) em %s:%d\n", 
+               ptr, block->size, total_overhead, file, line);
+    }
+    
+    /* Limpar e liberar */
+    free(block->ptr);
+    free(block);
 }
 
 /* Wrapper para liberação normal */

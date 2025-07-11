@@ -10,7 +10,7 @@
 #include <stdint.h>
 
 /* Configurações globais */
-#define MAX_MEMORY_KB 2048
+#define MAX_MEMORY_KB 512  
 #define MAX_MEMORY_BYTES (MAX_MEMORY_KB * 1024)
 #define MAX_TOKEN_LENGTH 256
 #define MAX_IDENTIFIER_LENGTH 64
@@ -19,6 +19,11 @@
 #define MAX_FUNCTION_PARAMS 16
 #define MAX_SYMBOL_TABLE_SIZE 1024
 #define MAX_ERROR_MESSAGE_LENGTH 512
+
+/* Configurações de memória interna */
+#define MEMORY_BLOCK_OVERHEAD 32  /* Bytes extras para cada bloco alocado */
+#define MEMORY_GUARD_SIZE 16      /* Tamanho dos guardas de memória */
+#define DEBUG_MEMORY 1            /* Ativar debug de memória */
 
 /* Tipos de token */
 typedef enum {

@@ -23,34 +23,23 @@ funcao __teste2() {
 
 // Erro 5: String sem fechar
 principal() {
-    texto !mensagem = "Teste de erro;
-    
-    // Erro 6: Variável não declarada
-    !valor = 10;
-    
-    // Erro 7: Dimensão decimal inválida
-    decimal !preco[2.a];
-    
-    // Erro 8: Parênteses não fechado
-    se(!valor > 0 {
-        escreva("Positivo");
-    }
-    
-    // Erro 9: Operador inválido
-    inteiro !a = 5 $ 2;
-    
-    // Erro 10: Chamada de função inexistente
-    __nao_existe();
-    
-    // Erro 11: Tipo incompatível em atribuição
-    texto !nome = 123;
-    
-    // Erro 12: Dimensão negativa
-    texto !texto[-10];
-    
-    // Erro 13: Chaves não fechadas
-    para(!i = 0; !i < 10; !i = !i + 1) {
-        escreva(!i);
-    
+    /* Teste de estouro de memória */
+    texto !str1[1000];
+    texto !str2[1000];
+    texto !str3[1000];
+    texto !str4[1000];
+    texto !str5[1000];
+
+    /* Tentar alocar mais strings */
+    !str1 = "Primeira string muito grande...";
+    !str2 = "Segunda string muito grande...";
+    !str3 = "Terceira string muito grande...";
+    !str4 = "Quarta string muito grande...";
+    !str5 = "Quinta string muito grande...";
+
+    /* Tentar alocar mais uma string - deve estourar a memória */
+    texto !str6[1000];
+    !str6 = "Esta alocação deve falhar por falta de memória";
+
     retorno 0;
 } 

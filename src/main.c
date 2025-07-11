@@ -164,6 +164,20 @@ void test_interpreter(const char* source_code) {
 
 /* Função para ler arquivo */
 char* read_file(const char* filename) {
+    /* Verificar se há memória disponível antes de abrir o arquivo */
+    struct stat file_stat;
+    if (stat(filename, &file_stat) != 0) {
+        fprintf(stderr, "Erro: Não foi possível obter informações do arquivo '%s'\n", filename);
+        return NULL;
+    }
+
+    /* Verificar se há memória suficiente para o arquivo + buffer de segurança */
+    size_t required_memory = file_stat.st_size + 1024; // 1KB extra para segurança
+    if (g_memory_manager->allocated + required_memory > g_memory_manager->limit) {
+        error_report(ERROR_MEMORY, 0, 0, "Memória insuficiente para abrir o arquivo");
+        return NULL;
+    }
+
     FILE* file = fopen(filename, "r");
     if (!file) {
         fprintf(stderr, "Erro: Não foi possível abrir o arquivo '%s'\n", filename);
@@ -194,6 +208,17 @@ char* read_file(const char* filename) {
     content[read_size] = '\0';
     
     fclose(file);
+
+    /* Verificar uso de memória após leitura */
+    int warning_level = memory_check_limit(g_memory_manager);
+    if (warning_level > 0) {
+        printf("\nAVISO: Alto uso de memória após leitura do arquivo.\n");
+        printf("Memória alocada: %zu bytes\n", g_memory_manager->allocated);
+        printf("Limite de memória: %zu bytes\n", g_memory_manager->limit);
+        printf("Uso atual: %.1f%%\n\n", 
+            (double)g_memory_manager->allocated / g_memory_manager->limit * 100.0);
+    }
+
     return content;
 }
 
