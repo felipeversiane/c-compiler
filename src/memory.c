@@ -1,4 +1,6 @@
 #include "../include/compiler.h"
+#include <sys/resource.h>
+#include <unistd.h>
 
 /* Estrutura para rastrear alocações */
 typedef struct MemoryBlock {
@@ -34,6 +36,8 @@ static void add_memory_guards(void* ptr, size_t size);
 static int verify_memory_guards(void* ptr, size_t size);
 static void log_memory_operation(const char* operation, void* ptr, size_t size, const char* file, int line);
 static void calculate_fragmentation(InternalMemoryManager* imm);
+static size_t get_current_process_memory(void);
+static void update_process_peak_usage(MemoryManager* mm);
 
 /* Criar gerenciador de memória com inicialização completa */
 MemoryManager* memory_manager_create(void) {
@@ -49,6 +53,7 @@ MemoryManager* memory_manager_create(void) {
     mm->base.limit = MAX_MEMORY_BYTES;
     mm->base.allocation_count = 0;
     mm->base.deallocation_count = 0;
+    mm->base.process_peak_usage = get_current_process_memory();
     
     /* Inicializar estrutura interna */
     mm->blocks = NULL;
@@ -75,6 +80,7 @@ void memory_manager_destroy(MemoryManager* mm) {
     int leak_count = 0;
     size_t leaked_bytes = 0;
     MemoryBlock* block = imm->blocks;
+    update_process_peak_usage(mm);
     
     while (block) {
         MemoryBlock* next = block->next;
@@ -161,10 +167,14 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     mm->allocation_count++;
     imm->active_blocks++;
     imm->total_allocated += size;
+
+    update_process_peak_usage(mm);
     
     if (mm->allocated > mm->peak_usage) {
         mm->peak_usage = mm->allocated;
     }
+
+    update_process_peak_usage(mm);
     
     /* Calcular fragmentação */
     calculate_fragmentation(imm);
@@ -232,6 +242,8 @@ void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line,
             /* Liberar memória */
             free(block->ptr);
             free(block);
+
+            update_process_peak_usage(mm);
             
             return;
         }
@@ -353,19 +365,21 @@ void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size) {
 /* Verificar limite de memória com múltiplos níveis */
 int memory_check_limit(MemoryManager* mm) {
     if (!mm) return 0;
-    
-    double usage_percent = (double)mm->allocated / mm->limit * 100.0;
+
+    size_t current = get_current_process_memory();
+    update_process_peak_usage(mm);
+    double usage_percent = (double)current / mm->limit * 100.0;
     
     if (usage_percent >= 100.0) {
         error_report(ERROR_MEMORY, 0, 0, "Limite de memória excedido (100%)");
         return 3; /* Erro crítico */
     } else if (usage_percent >= 95.0) {
         fprintf(stderr, "AVISO CRÍTICO: Uso de memória muito alto: %.1f%% (%zu/%zu bytes)\n",
-                usage_percent, mm->allocated, mm->limit);
+                usage_percent, current, mm->limit);
         return 2; /* Aviso crítico */
     } else if (usage_percent >= 90.0) {
         fprintf(stderr, "AVISO: Uso de memória alto: %.1f%% (%zu/%zu bytes)\n",
-                usage_percent, mm->allocated, mm->limit);
+                usage_percent, current, mm->limit);
         return 1; /* Aviso normal */
     }
     
@@ -375,12 +389,19 @@ int memory_check_limit(MemoryManager* mm) {
 /* Gerar relatório de memória básico */
 void memory_report(MemoryManager* mm) {
     if (!mm) return;
-    
+
+    size_t current = get_current_process_memory();
+    update_process_peak_usage(mm);
+
     printf("\n=== RELATÓRIO DE MEMÓRIA ===\n");
-    printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n", 
+    printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n",
            mm->allocated, (double)mm->allocated / 1024.0);
-    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n", 
+    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n",
            mm->peak_usage, (double)mm->peak_usage / 1024.0);
+    printf("Pico total do processo: %zu bytes (%.2f KB)\n",
+           mm->process_peak_usage, (double)mm->process_peak_usage / 1024.0);
+    printf("Uso atual do processo: %zu bytes (%.2f KB)\n",
+           current, (double)current / 1024.0);
     printf("Limite de memória: %zu bytes (%.2f KB)\n", 
            mm->limit, (double)mm->limit / 1024.0);
     printf("Uso atual: %.1f%% do limite\n", 
@@ -393,15 +414,22 @@ void memory_report(MemoryManager* mm) {
 /* Gerar relatório detalhado de memória */
 void memory_report_detailed(MemoryManager* mm) {
     if (!mm) return;
-    
+
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
+
+    size_t current = get_current_process_memory();
+    update_process_peak_usage(mm);
     
     printf("\n=== RELATÓRIO DETALHADO DE MEMÓRIA ===\n");
     printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n", 
            mm->allocated, (double)mm->allocated / 1024.0);
-    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n", 
+    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n",
            mm->peak_usage, (double)mm->peak_usage / 1024.0);
-    printf("Limite de memória: %zu bytes (%.2f KB)\n", 
+    printf("Pico total do processo: %zu bytes (%.2f KB)\n",
+           mm->process_peak_usage, (double)mm->process_peak_usage / 1024.0);
+    printf("Uso atual do processo: %zu bytes (%.2f KB)\n",
+           current, (double)current / 1024.0);
+    printf("Limite de memória: %zu bytes (%.2f KB)\n",
            mm->limit, (double)mm->limit / 1024.0);
     printf("Uso atual: %.1f%% do limite\n", 
            (double)mm->allocated / mm->limit * 100.0);
@@ -517,6 +545,11 @@ int memory_validate_integrity(MemoryManager* mm) {
     return errors == 0;
 }
 
+/* Expor uso atual de memória do processo */
+size_t memory_get_process_usage(void) {
+    return get_current_process_memory();
+}
+
 /* Funções auxiliares */
 static void poison_memory(void* ptr, size_t size) {
     if (DEBUG_MEMORY) {
@@ -607,4 +640,26 @@ static void calculate_fragmentation(InternalMemoryManager* imm) {
     } else {
         imm->fragmentation_level = 0; /* Sem fragmentação */
     }
-} 
+}
+
+/* Obter uso atual de memória do processo */
+static size_t get_current_process_memory(void) {
+    FILE* f = fopen("/proc/self/statm", "r");
+    if (!f) return 0;
+    long rss = 0;
+    if (fscanf(f, "%*s %ld", &rss) != 1) {
+        fclose(f);
+        return 0;
+    }
+    fclose(f);
+    long page_size = sysconf(_SC_PAGESIZE);
+    return (size_t)rss * (size_t)page_size;
+}
+
+/* Atualizar pico de memória do processo */
+static void update_process_peak_usage(MemoryManager* mm) {
+    size_t current = get_current_process_memory();
+    if (current > mm->process_peak_usage) {
+        mm->process_peak_usage = current;
+    }
+}

@@ -166,6 +166,7 @@ typedef struct {
     size_t limit;
     int allocation_count;
     int deallocation_count;
+    size_t process_peak_usage; /* Pico de memória do processo */
 } MemoryManager;
 
 /* Tipos de erro */
@@ -282,6 +283,7 @@ void memory_report(MemoryManager* mm);
 void memory_report_detailed(MemoryManager* mm);
 int memory_check_limit(MemoryManager* mm);
 int memory_validate_integrity(MemoryManager* mm);
+size_t memory_get_process_usage(void);
 
 /* Macros para facilitar debug de memória */
 #define MEMORY_ALLOC(mm, size) memory_alloc_debug(mm, size, __FILE__, __LINE__, __func__)

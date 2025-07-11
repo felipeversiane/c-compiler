@@ -250,24 +250,93 @@ int main(int argc, char* argv[]) {
     printf("Arquivo: %s\n", argv[1]);
     printf("Tamanho: %zu bytes\n\n", strlen(source_code));
     
-    /* Testar analisador léxico */
-    test_lexer(source_code);
-    
-    /* Testar analisador sintático e semântico */
-    test_parser(source_code);
-    
-    /* Testar interpretador */
-    test_interpreter(source_code);
-    
-    /* Verificar se houve erros */
-    if (g_error_count > 0) {
-        printf("COMPILAÇÃO FALHOU: %d erro(s) encontrado(s)\n", g_error_count);
+    /* === Pipeline de compilação === */
+
+    /* 1. Análise léxica */
+    Lexer* lex = lexer_create(source_code);
+    if (!lex) {
         memory_free(g_memory_manager, source_code);
         memory_manager_destroy(g_memory_manager);
         return 1;
     }
-    
-    printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
+
+    Token t;
+    do {
+        t = lexer_next_token(lex);
+    } while (t.type != TOKEN_EOF && t.type != TOKEN_ERROR);
+
+    if (lex->error_count > 0) {
+        printf("Erro léxico encontrado. Abortando.\n");
+        lexer_destroy(lex);
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    lexer_destroy(lex);
+
+    /* 2. Análise sintática */
+    Lexer* lexer2 = lexer_create(source_code);
+    if (!lexer2) {
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    Parser* parser = parser_create(lexer2);
+    if (!parser) {
+        lexer_destroy(lexer2);
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    ASTNode* ast = parser_parse(parser);
+
+    if (lexer2->error_count > 0 || parser->error_count > 0 || !ast) {
+        printf("Erro sintático encontrado. Abortando.\n");
+        if (ast) ast_destroy(ast);
+        parser_destroy(parser);
+        lexer_destroy(lexer2);
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    /* 3. Análise semântica */
+    int semantic_ok = semantic_analyze(ast, parser->symbol_table);
+    if (!semantic_ok) {
+        printf("Erro semântico encontrado. Abortando.\n");
+        ast_destroy(ast);
+        parser_destroy(parser);
+        lexer_destroy(lexer2);
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    /* 4. Execução */
+    Interpreter* interpreter = interpreter_create(ast, parser->symbol_table);
+    if (!interpreter) {
+        ast_destroy(ast);
+        parser_destroy(parser);
+        lexer_destroy(lexer2);
+        memory_free(g_memory_manager, source_code);
+        memory_manager_destroy(g_memory_manager);
+        return 1;
+    }
+
+    int exec_ok = interpreter_execute(interpreter);
+    if (!exec_ok) {
+        printf("Erro durante a execução.\n");
+    } else {
+        printf("COMPILAÇÃO E EXECUÇÃO CONCLUÍDAS COM SUCESSO!\n");
+    }
+
+    interpreter_destroy(interpreter);
+    ast_destroy(ast);
+    parser_destroy(parser);
+    lexer_destroy(lexer2);
     
     /* Limpar e finalizar */
     memory_free(g_memory_manager, source_code);
