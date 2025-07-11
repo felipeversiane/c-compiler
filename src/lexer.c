@@ -213,17 +213,11 @@ static Token read_identifier(Lexer* lexer) {
             /* Erro: identificador malformado */
             token.type = TOKEN_ERROR;
             snprintf(token.value, MAX_TOKEN_LENGTH,
-                     "ID malformado: %.200s",
+                     "ID deve começar com ! (var) ou __ (func): %.200s",
                      buffer);
+            lexer->error_count++;
             return token;
         }
-
-        /* Erro: identificador sem marcador correto */
-        token.type = TOKEN_ERROR;
-        snprintf(token.value, MAX_TOKEN_LENGTH,
-                 "ID deve começar com ! (var) ou __ (func): %.200s",
-                 buffer);
-        return token;
     }
     
     return token;

@@ -9,14 +9,8 @@ services:
       - .:/app
     command: >
       sh -c "
-        make clean &&
-        make &&
-        echo 'Testando exemplos...' &&
-        for example in examples/*.txt; do
-          echo \"\nTestando $$example...\" &&
-          ./bin/compiler \"$$example\" || exit 1;
-        done &&
-        echo '\nTodos os testes passaram com sucesso!'
+        chmod +x scripts/run_all_tests.sh &&
+        ./scripts/run_all_tests.sh
       "
 
   dev:

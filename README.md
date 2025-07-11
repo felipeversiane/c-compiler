@@ -1,6 +1,6 @@
 # Compilador de Linguagem Personalizada
 
-Um compilador completo implementado em C seguindo as especificações ISO/IEC 9899-1990, com análise léxica, sintática, semântica e interpretação de código.
+Um compilador simplificado implementado em C seguindo as especificações ISO/IEC 9899-1990, focado em **análise léxica** e **gerenciamento de memória** com sistema completo de testes.
 
 ## 🎯 Funcionalidades Implementadas
 
@@ -11,32 +11,21 @@ Um compilador completo implementado em C seguindo as especificações ISO/IEC 98
 - Validação de identificadores e literais
 - Tratamento de erros léxicos
 
-### ✅ Análise Sintática
-- Parser completo para a gramática da linguagem
-- Construção de AST (Árvore Sintática Abstrata)
-- Tratamento de erros sintáticos com recuperação
-- Suporte a múltiplas funções
-
-### ✅ Análise Semântica
-- Verificação rigorosa de tipos
-- Validação de escopo
-- Verificação de declarações de variáveis e funções
-- Avisos para conversões implícitas de tipos
-- Validação de nomes conforme especificações
-
 ### ✅ Gerenciamento de Memória (100% Coverage)
 - Alocação e liberação automática
 - Detecção de vazamentos de memória
 - Guardas de memória para detecção de corrupção
 - Relatórios detalhados de uso
-- Limite configurável (padrão: 2048 KB)
+- Limite configurável (padrão: 512 KB)
+- Fragmentação e integridade de memória
+- Rastreamento completo de alocações
 
-### ✅ Interpretador
-- Execução de código fonte
-- Suporte a todos os tipos de dados
-- Operações aritméticas, relacionais e lógicas
-- Comandos de entrada e saída
-- Gerenciamento de variáveis em runtime
+### ✅ Sistema de Testes Completo
+- 16 cenários de teste básicos
+- 8 cenários de estresse de memória
+- Testes de erros léxicos
+- Verificação de limites de memória
+- Relatórios detalhados de performance
 
 ## 🔧 Compilação
 
@@ -47,8 +36,12 @@ make
 # Limpar arquivos compilados
 make clean
 
-# Executar testes
-make test
+# Executar testes completos
+docker-compose up test
+
+# Ou localmente
+chmod +x scripts/*.sh
+./scripts/run_all_tests.sh
 ```
 
 ## 🚀 Uso
@@ -61,7 +54,10 @@ make test
 ./bin/compiler
 
 # Executar conjunto completo de testes
-make test
+./scripts/run_all_tests.sh
+
+# Ver documentação completa dos testes
+# TESTING.md
 ```
 
 ## 📝 Linguagem Suportada
@@ -123,29 +119,37 @@ para(!i = 1; !i <= 10; !i = !i + 1) {
 c-compiler/
 ├── src/              # Código fonte
 │   ├── lexer.c       # Analisador léxico
-│   ├── parser.c      # Analisador sintático
-│   ├── semantic.c    # Analisador semântico
-│   ├── interpreter.c # Interpretador
 │   ├── memory.c      # Gerenciador de memória
-│   ├── symbol_table.c # Tabela de símbolos
-│   ├── ast.c         # Árvore sintática abstrata
 │   ├── utils.c       # Utilitários
 │   └── main.c        # Programa principal
 ├── include/          # Headers
 │   └── compiler.h    # Definições principais
 ├── examples/         # Exemplos de código
-├── tests/           # Testes automatizados
-├── Makefile         # Sistema de build
-└── README.md        # Este arquivo
+├── scripts/          # Scripts de teste
+│   ├── test_all.sh           # Testes básicos
+│   ├── test_memory_stress.sh # Testes de estresse
+│   └── run_all_tests.sh      # Script master
+├── Makefile          # Sistema de build
+├── docker-compose.yml # Configuração Docker
+├── TESTING.md        # Documentação dos testes
+└── README.md         # Este arquivo
 ```
 
-## 🧪 Exemplos Disponíveis
+## 🧪 Exemplos e Testes Disponíveis
 
+### Arquivos de Exemplo
 - `examples/hello_world.txt` - Exemplo básico
-- `examples/comprehensive.txt` - Exemplo completo com funções
-- `examples/calculator.txt` - Calculadora simples
+- `examples/calculator.txt` - Operações matemáticas
 - `examples/functions.txt` - Demonstração de funções
 - `examples/loops.txt` - Estruturas de repetição
+- `examples/comprehensive.txt` - Exemplo abrangente
+- `examples/decimals.txt` - Números decimais
+- `examples/error_test.txt` - Teste de erros léxicos
+
+### Scripts de Teste
+- `scripts/test_all.sh` - 16 cenários de teste básicos
+- `scripts/test_memory_stress.sh` - 8 cenários de estresse
+- `scripts/run_all_tests.sh` - Script master completo
 
 ## 🔍 Funcionalidades de Debug
 
@@ -179,21 +183,15 @@ O compilador fornece relatórios detalhados incluindo:
 ### Erros Léxicos
 - Tokens não reconhecidos
 - Caracteres inválidos
+- Strings não fechadas
+- Identificadores malformados
+- Números malformados
 
-### Erros Sintáticos
-- Estruturas malformadas
-- Pontuação ausente
-- Duplo balanceamento
-
-### Erros Semânticos
-- Tipos incompatíveis
-- Variáveis não declaradas
-- Função principal ausente
-
-### Erros de Execução
-- Divisão por zero
-- Acesso a variáveis não inicializadas
-- Estouro de memória
+### Erros de Memória
+- Limite de memória excedido
+- Vazamentos de memória
+- Corrupção de dados
+- Fragmentação excessiva
 
 ## 🎓 Conformidade com Especificações
 
@@ -214,11 +212,9 @@ O compilador fornece relatórios detalhados incluindo:
 ## 📈 Status do Projeto
 
 - **Lexer**: ✅ Completo
-- **Parser**: ✅ Completo  
-- **Semantic**: ✅ Completo
 - **Memory**: ✅ Completo (100% coverage)
-- **Interpreter**: ✅ Funcional
-- **Testing**: ✅ Implementado
+- **Testing**: ✅ Implementado (24 cenários)
+- **Documentation**: ✅ Completa
 
 ## 🤝 Contribuição
 

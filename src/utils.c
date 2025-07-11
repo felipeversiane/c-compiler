@@ -87,17 +87,6 @@ const char* token_type_to_string(TokenType type) {
     }
 }
 
-/* Converter tipo de dados para string */
-const char* data_type_to_string(DataType type) {
-    switch (type) {
-        case TYPE_VOID: return "void";
-        case TYPE_INTEIRO: return "inteiro";
-        case TYPE_TEXTO: return "texto";
-        case TYPE_DECIMAL: return "decimal";
-        default: return "desconhecido";
-    }
-}
-
 /* Reportar erro */
 void error_report(ErrorType type, int line, int column, const char* message) {
     const char* error_type_name = "";

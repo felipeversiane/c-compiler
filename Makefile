@@ -1,41 +1,46 @@
-# Compilador e flags
 CC = gcc
 CFLAGS = -Wall -std=c99 -Wextra -I include
+SRCDIR = src
+OBJDIR = obj
+BINDIR = bin
 
-# Diretórios
-SRC_DIR = src
-OBJ_DIR = obj
-BIN_DIR = bin
+# Arquivos fonte necessários apenas para léxico e memória
+SOURCES = lexer.c memory.c main.c utils.c
+OBJECTS = $(SOURCES:%.c=$(OBJDIR)/%.o)
+TARGET = $(BINDIR)/compiler
 
-# Arquivos fonte e objeto
-SRCS = $(wildcard $(SRC_DIR)/*.c)
-OBJS = $(SRCS:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+# Regra padrão
+all: $(TARGET)
 
-# Nome do executável
-TARGET = $(BIN_DIR)/compiler
+# Criar diretórios
+$(OBJDIR):
+	mkdir -p $(OBJDIR)
 
-# Regras
-all: directories $(TARGET)
+$(BINDIR):
+	mkdir -p $(BINDIR)
 
-# Criar diretórios necessários
-directories:
-	@mkdir -p $(OBJ_DIR)
-	@mkdir -p $(BIN_DIR)
-
-# Compilar o executável
-$(TARGET): $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET)
-
-# Compilar arquivos objeto
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+# Compilar objetos
+$(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Limpar arquivos gerados
-clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+# Linkar executável
+$(TARGET): $(OBJECTS) | $(BINDIR)
+	$(CC) $(OBJECTS) -o $(TARGET)
 
-# Executar testes
-test: all
+# Testar com exemplo
+test: $(TARGET)
 	$(TARGET) examples/hello_world.txt
 
-.PHONY: all clean test directories 
+# Limpar
+clean:
+	rm -rf $(OBJDIR) $(BINDIR)
+
+# Instalar
+install: $(TARGET)
+	cp $(TARGET) /usr/local/bin/
+
+# Desinstalar
+uninstall:
+	rm -f /usr/local/bin/compiler
+
+.PHONY: all clean test install uninstall 

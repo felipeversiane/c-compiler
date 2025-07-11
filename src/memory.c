@@ -45,10 +45,10 @@ MemoryManager* memory_manager_create(void) {
     /* Inicializar estrutura base */
     mm->base.allocated = 0;
     mm->base.peak_usage = 0;
+    mm->base.process_peak_usage = 0;
     mm->base.limit = MAX_MEMORY_BYTES;
     mm->base.allocation_count = 0;
     mm->base.deallocation_count = 0;
-    mm->base.process_peak_usage = get_current_process_memory();
     
     /* Inicializar estrutura interna */
     mm->blocks = NULL;
@@ -59,7 +59,10 @@ MemoryManager* memory_manager_create(void) {
     mm->last_warning_percent = 0;
     
     if (DEBUG_MEMORY) {
-        printf("DEBUG: Gerenciador de memória criado com limite de %zu bytes\n", mm->base.limit);
+        printf("DEBUG: Gerenciador de memória criado\n");
+        printf("       Limite total: %zu bytes (%.2f KB)\n", mm->base.limit, (double)mm->base.limit / 1024.0);
+        printf("       Memória disponível: %zu bytes (%.2f KB)\n", 
+               mm->base.limit, (double)mm->base.limit / 1024.0);
     }
     
     return (MemoryManager*)mm;
@@ -402,27 +405,26 @@ void memory_report(MemoryManager* mm) {
 /* Gerar relatório detalhado de memória */
 void memory_report_detailed(MemoryManager* mm) {
     if (!mm) return;
-
+    
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
-
-    size_t current = get_current_process_memory();
-    update_process_peak_usage(mm);
     
     printf("\n=== RELATÓRIO DETALHADO DE MEMÓRIA ===\n");
-    printf("Memória alocada atualmente: %zu bytes (%.2f KB)\n", 
-           mm->allocated, (double)mm->allocated / 1024.0);
-    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n",
-           mm->peak_usage, (double)mm->peak_usage / 1024.0);
-    printf("Pico total do processo: %zu bytes (%.2f KB)\n",
-           mm->process_peak_usage, (double)mm->process_peak_usage / 1024.0);
-    printf("Uso atual do processo: %zu bytes (%.2f KB)\n",
-           current, (double)current / 1024.0);
-    printf("Limite de memória: %zu bytes (%.2f KB)\n",
+    
+    printf("--- VISÃO GERAL ---\n");
+    printf("Limite total: %zu bytes (%.2f KB)\n", 
            mm->limit, (double)mm->limit / 1024.0);
+    printf("Memória disponível para alocação: %zu bytes (%.2f KB)\n", 
+           mm->limit - mm->allocated, (double)(mm->limit - mm->allocated) / 1024.0);
+    
+    printf("\n--- USO ATUAL ---\n");
+    printf("Memória alocada: %zu bytes (%.2f KB)\n", 
+           mm->allocated, (double)mm->allocated / 1024.0);
+    printf("Pico de uso de memória: %zu bytes (%.2f KB)\n", 
+           mm->peak_usage, (double)mm->peak_usage / 1024.0);
     printf("Uso atual: %.1f%% do limite\n", 
            (double)mm->allocated / mm->limit * 100.0);
     
-    printf("\n--- ESTATÍSTICAS AVANÇADAS ---\n");
+    printf("\n--- ESTATÍSTICAS ---\n");
     printf("Total de alocações: %d\n", mm->allocation_count);
     printf("Total de desalocações: %d\n", mm->deallocation_count);
     printf("Blocos ativos: %d\n", imm->active_blocks);
@@ -441,7 +443,7 @@ void memory_report_detailed(MemoryManager* mm) {
                (double)mm->allocated / imm->active_blocks);
     }
     
-    /* Mostrar blocos não liberados */
+    /* Mostrar blocos ativos */
     printf("\n--- BLOCOS ATIVOS ---\n");
     int leak_count = 0;
     size_t leaked_bytes = 0;
@@ -452,7 +454,7 @@ void memory_report_detailed(MemoryManager* mm) {
         leaked_bytes += block->size;
         
         if (DEBUG_MEMORY) {
-            printf("Bloco %d: %zu bytes alocados em %s:%d (%s)\n", 
+            printf("Bloco %d: %zu bytes em %s:%d (%s)\n", 
                    leak_count, block->size, block->file_allocated, 
                    block->line_allocated, block->function_allocated);
         }
@@ -473,8 +475,9 @@ void memory_report_detailed(MemoryManager* mm) {
                mm->deallocation_count, mm->allocation_count);
     }
     
-    printf("Desperdício atual: %zu bytes (%.2f KB)\n", 
-           mm->limit - mm->allocated, (double)(mm->limit - mm->allocated) / 1024.0);
+    printf("Memória disponível: %zu bytes (%.2f KB)\n", 
+           mm->limit - mm->allocated,
+           (double)(mm->limit - mm->allocated) / 1024.0);
     
     printf("=====================================\n\n");
 }
