@@ -200,7 +200,7 @@ void* memory_alloc(MemoryManager* mm, size_t size) {
 }
 
 /* Liberar memória com verificação completa */
-void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line, const char* function) {
+void memory_free_debug(MemoryManager* mm, void* ptr, const char* file, int line, const char* function __attribute__((unused))) {
     /* function é mantido para consistência com a interface de debug, mesmo que não usado */
     if (!mm || !ptr) return;
     
