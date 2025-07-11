@@ -110,7 +110,7 @@ void memory_manager_destroy(MemoryManager* mm) {
 }
 
 /* Alocar memória com rastreamento avançado */
-void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int line, const char* function) {
+void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int line, const char* function __attribute__((unused))) {
     if (!mm || size == 0) return NULL;
     
     InternalMemoryManager* imm = (InternalMemoryManager*)mm;
@@ -121,11 +121,13 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     
     /* Verificar limite de memória */
     if (mm->allocated + total_size > mm->limit) {
-        error_report(ERROR_MEMORY, line, 0, "Memória Insuficiente");
         if (DEBUG_MEMORY) {
-            fprintf(stderr, "ERRO: Tentativa de alocar %zu bytes (+ %zu overhead), mas apenas %zu bytes disponíveis\n",
-                    size, total_overhead, mm->limit - mm->allocated);
+            fprintf(stderr, "DEBUG: Falha na alocação - Tentando alocar %zu bytes (+ %zu overhead)\n", 
+                    size, total_overhead);
+            fprintf(stderr, "       Memória atual: %zu bytes, Limite: %zu bytes, Disponível: %zu bytes\n",
+                    mm->allocated, mm->limit, mm->limit - mm->allocated);
         }
+        error_report(ERROR_MEMORY, line, 0, "Memória Insuficiente");
         return NULL;
     }
     
@@ -161,7 +163,7 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     imm->blocks = block;
     
     /* Atualizar estatísticas */
-    mm->allocated += total_size;  /* Incluir overhead na contagem */
+    mm->allocated += total_size;
     mm->allocation_count++;
     imm->active_blocks++;
     imm->total_allocated += total_size;
@@ -173,22 +175,12 @@ void* memory_alloc_debug(MemoryManager* mm, size_t size, const char* file, int l
     /* Calcular fragmentação */
     calculate_fragmentation(imm);
     
-    /* Verificar avisos de memória */
-    int warning_level = memory_check_limit(mm);
-    if (warning_level > 0) {
-        int current_percent = (mm->allocated * 100) / mm->limit;
-        if (current_percent > imm->last_warning_percent + 5) {
-            imm->last_warning_percent = current_percent;
-            if (DEBUG_MEMORY) {
-                printf("DEBUG: Uso de memória aumentou para %d%% (incluindo overhead)\n", current_percent);
-            }
-        }
-    }
-    
     /* Log da operação */
     if (DEBUG_MEMORY) {
-        printf("MEMORY_LOG: ALLOC %p (%zu bytes + %zu overhead) em %s:%d\n", 
-               user_ptr, size, total_overhead, file, line);
+        printf("DEBUG: Alocação bem sucedida - %zu bytes (+ %zu overhead) em %s:%d\n", 
+               size, total_overhead, file, line);
+        printf("       Memória atual: %zu bytes (%.1f%% do limite)\n", 
+               mm->allocated, ((double)mm->allocated / mm->limit) * 100.0);
     }
     
     return user_ptr;
@@ -358,21 +350,24 @@ void* memory_realloc(MemoryManager* mm, void* ptr, size_t new_size) {
 /* Verificar limite de memória com múltiplos níveis */
 int memory_check_limit(MemoryManager* mm) {
     if (!mm) return 0;
-
-    size_t current = get_current_process_memory();
-    update_process_peak_usage(mm);
-    double usage_percent = (double)current / mm->limit * 100.0;
     
-    if (usage_percent >= 100.0) {
-        error_report(ERROR_MEMORY, 0, 0, "Limite de memória excedido (100%)");
+    double usage_percent = ((double)mm->allocated / (double)mm->limit) * 100.0;
+    
+    if (DEBUG_MEMORY) {
+        printf("DEBUG: Verificando limite de memória - Uso: %.2f%% (%zu/%zu bytes)\n",
+               usage_percent, mm->allocated, mm->limit);
+    }
+    
+    if (mm->allocated >= mm->limit) {
+        error_report(ERROR_MEMORY, 0, 0, "Limite de memória excedido");
         return 3; /* Erro crítico */
     } else if (usage_percent >= 95.0) {
         fprintf(stderr, "AVISO CRÍTICO: Uso de memória muito alto: %.1f%% (%zu/%zu bytes)\n",
-                usage_percent, current, mm->limit);
+                usage_percent, mm->allocated, mm->limit);
         return 2; /* Aviso crítico */
     } else if (usage_percent >= 90.0) {
         fprintf(stderr, "AVISO: Uso de memória alto: %.1f%% (%zu/%zu bytes)\n",
-                usage_percent, current, mm->limit);
+                usage_percent, mm->allocated, mm->limit);
         return 1; /* Aviso normal */
     }
     
