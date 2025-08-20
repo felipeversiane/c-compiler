@@ -23,7 +23,7 @@
 /* Configurações de memória interna */
 #define MEMORY_BLOCK_OVERHEAD 32  /* Bytes extras para cada bloco alocado */
 #define MEMORY_GUARD_SIZE 16      /* Tamanho dos guardas de memória */
-#define DEBUG_MEMORY 1            /* Ativar debug de memória */
+#define DEBUG_MEMORY 0           /* Ativar debug de memória */
 #define MEMORY_POISON_VALUE 0xDEADBEEF  /* Valor usado para envenenar memória liberada */
 
 /* Tipos de token */
