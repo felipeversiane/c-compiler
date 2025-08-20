@@ -36,6 +36,6 @@ clean:
 
 # Executar testes
 test: all
-	$(TARGET) examples/hello_world.txt
+	$(TARGET) examples/calculator.txt
 
 .PHONY: all clean test directories 

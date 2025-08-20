@@ -33,7 +33,7 @@ funcao __divisao(decimal !a[5], decimal !b[5]) {
 }
 
 // Função para potência
-funcao __potencia(decimal !base[5], inteiro !expoente) {
+funcao __potencia(decimal !base[5],  !expoente inteiro) {
     decimal !resultado[10] = 1.0;
     inteiro !i;
     
